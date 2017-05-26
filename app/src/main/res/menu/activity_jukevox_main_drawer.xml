@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_library"
+            android:icon="@drawable/ic_menu_slideshow"
+            android:title="Library" />
+        <item
+            android:id="@+id/nav_manage"
+            android:icon="@drawable/ic_menu_manage"
+            android:title="Tools" />
+    </group>
+
+    <item android:title="@string/room_options_title">
+        <menu>
+            <item
+                android:id="@+id/nav_start_room"
+                android:icon="@drawable/ic_menu_share"
+                android:title="Start Room" />
+            <item
+                android:id="@+id/nav_join_room"
+                android:icon="@drawable/common_full_open_on_phone"
+                android:title="Join Room" />
+        </menu>
+    </item>
+
+</menu>
