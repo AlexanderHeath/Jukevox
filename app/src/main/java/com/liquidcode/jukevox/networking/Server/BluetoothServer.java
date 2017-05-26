@@ -59,7 +59,7 @@ public class BluetoothServer {
         stopServerListen();
         // start the accept thread here
         if(m_acceptThread == null) {
-            m_acceptThread = new AcceptThread(true);
+            m_acceptThread = new AcceptThread(false);
         }
         // start the thread
         m_acceptThread.start();
@@ -177,7 +177,12 @@ public class BluetoothServer {
 
             // Create a new listening server socket
             try {
-                m_serverSocket = m_btAdapter.listenUsingRfcommWithServiceRecord(LISTEN_NAME, UUID_RFCOMM_JUKEVOX);
+                if(secure) {
+                    m_serverSocket = m_btAdapter.listenUsingRfcommWithServiceRecord(LISTEN_NAME, UUID_RFCOMM_JUKEVOX);
+                }
+                else {
+                    m_serverSocket = m_btAdapter.listenUsingInsecureRfcommWithServiceRecord(LISTEN_NAME, UUID_RFCOMM_JUKEVOX);
+                }
             } catch (IOException e) {
                 Log.e(TAG, "Socket Type: " + mSocketType + "listen() failed", e);
             }

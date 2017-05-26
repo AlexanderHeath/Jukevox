@@ -182,6 +182,5 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		if(m_bluetoothServer != null) {
 			m_bluetoothServer.endAllConnections();
 		}
-		((JukevoxMain)getActivity()).removeCurrentFragment();
 	}
 }
