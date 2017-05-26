@@ -118,9 +118,13 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 					// make sure we grabbed a valid BluetoothDevice object to connect to
 					if(m_currentDevice != null) {
 						Toast.makeText(getActivity(), "Connecting to Server: " + m_currentDevice.getName(), Toast.LENGTH_SHORT).show();
+						// update the bluetooth clients handler to ours
+						// there's a possibility that it was updated the the ClientJoinedFragments
+						// handler if we already connected to a room
+						m_bluetoothClient.updateUIHandler(mHandler);
 						// create the connect thread and try to connect to the server
 						// try secure connect first
-						m_bluetoothClient.connectToServer(m_currentDevice, true);
+						m_bluetoothClient.connectToServer(m_currentDevice, false);
 						// if that failed try with an insecure method
 //						if(m_bluetoothManager.getCurrentState() != BTStates.STATE_CONNECTED) {
 //							m_bluetoothManager.connectToServer(m_currentDevice, false);
