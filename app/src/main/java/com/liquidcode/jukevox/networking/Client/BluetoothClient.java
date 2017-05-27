@@ -8,8 +8,9 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-import com.liquidcode.jukevox.util.BTMessages;
+import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.util.BTStates;
+import com.liquidcode.jukevox.util.BTUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,6 +18,7 @@ import java.io.OutputStream;
 import java.util.UUID;
 
 /**
+ * Bluetooth client class that handles all bluetooth connections and sockets
  * Created by mikev on 5/23/2017.
  */
 
@@ -119,7 +121,7 @@ public class BluetoothClient {
      * @param device - server name
      * @param socketType - BT type
      */
-    public synchronized void connected(BluetoothSocket socket, BluetoothDevice
+    private synchronized void connected(BluetoothSocket socket, BluetoothDevice
             device, final String socketType) {
         Log.d(TAG, "connected, Socket Type:" + socketType);
         // Cancel the thread that completed the connection
@@ -153,7 +155,7 @@ public class BluetoothClient {
     private class ConnectThread extends Thread {
         private String mSocketType;
 
-        public ConnectThread(boolean secure) {
+        private ConnectThread(boolean secure) {
             mSocketType = secure ? "Secure" : "Insecure";
 
             // Get a BluetoothSocket for a connection with the
@@ -204,7 +206,7 @@ public class BluetoothClient {
             connected(m_clientSocket, m_serverDevice, mSocketType);
         }
 
-        public void cancel() {
+        private void cancel() {
             try {
                 m_clientSocket.close();
                 m_state = BTStates.STATE_NONE;
@@ -224,7 +226,7 @@ public class BluetoothClient {
         private final OutputStream m_outputStream;
         private final String m_deviceName;
 
-        public ConnectedThread(BluetoothSocket socket, String socketType) {
+        private ConnectedThread(BluetoothSocket socket, String socketType) {
             Log.d(TAG, "create ConnectedThread: " + socketType);
             mmSocket = socket;
             InputStream tmpIn = null;
@@ -246,7 +248,7 @@ public class BluetoothClient {
 
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[BTUtils.MAX_SOCKET_READ];
             int bytes;
 
             // Keep listening to the InputStream while connected
@@ -254,7 +256,6 @@ public class BluetoothClient {
                 try {
                     // Read from the InputStream
                     bytes = m_inputStream.read(buffer);
-
                     // Send the obtained bytes to the UI Activity
                     m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, bytes, -1, buffer)
                             .sendToTarget();
@@ -271,7 +272,7 @@ public class BluetoothClient {
          *
          * @param buffer The bytes to write
          */
-        public void write(byte[] buffer) {
+        private void write(byte[] buffer) {
             try {
                 m_outputStream.write(buffer);
                 // Share the sent message back to the UI Activity
@@ -282,7 +283,7 @@ public class BluetoothClient {
             }
         }
 
-        public void cancel() {
+        private void cancel() {
             try {
                 // close the input/output stream first
                 m_inputStream.close();

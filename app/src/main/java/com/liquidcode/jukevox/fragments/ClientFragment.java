@@ -6,7 +6,7 @@ import java.util.HashMap;
 import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
-import com.liquidcode.jukevox.util.BTMessages;
+import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 
 import android.Manifest;
 import android.app.AlertDialog;

@@ -12,5 +12,6 @@ import android.widget.Button;
 public interface BTUtils {
 
 	// max connected clients allowed
-	public static final int MAX_BT_CLIENTS = 8;
+	int MAX_BT_CLIENTS = 8;
+	int MAX_SOCKET_READ = 2048;
 }

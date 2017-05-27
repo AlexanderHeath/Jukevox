@@ -9,8 +9,9 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-import com.liquidcode.jukevox.util.BTMessages;
+import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.util.BTStates;
+import com.liquidcode.jukevox.util.BTUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,6 +20,8 @@ import java.util.HashMap;
 import java.util.UUID;
 
 /**
+ * Class that represents all bluetooth server behavior. This class handles multiple clients
+ * as well as the accept thread that waits for incoming connections
  * Created by mikev on 5/23/2017.
  */
 
@@ -68,7 +71,7 @@ public class BluetoothServer {
     /**
      * Stops the listening thread
      */
-    public synchronized  void stopServerListen() {
+    private synchronized  void stopServerListen() {
         // stop accepting connections
         if(m_acceptThread != null) {
             m_acceptThread.cancel();
@@ -123,16 +126,11 @@ public class BluetoothServer {
         m_clientConnections.put(clientName, newClientThread);
         // Send the name of the connected device back to the UI Activity
         // This is the UI Handler from our ServerFragment that we need to update
-        Message msg = m_uiHandler.obtainMessage(BTMessages.MESSAGE_CLIENT_DEVICE_NAME);
+        Message msg = m_uiHandler.obtainMessage(BTMessages.MESSAGE_CLIENT_DEVICE_CONNECTED);
         Bundle bundle = new Bundle();
         bundle.putString(BTMessages.CLIENT_NAME, clientName);
         msg.setData(bundle);
         m_uiHandler.sendMessage(msg);
-        // now notify all connected clients that the room counter has changed
-        byte[] outgoing = new byte[2];
-        outgoing[0] = BTMessages.SM_CLIENTCOUNT;
-        outgoing[1] = (byte)m_clientConnections.size();
-        sendDataToClients(outgoing);
     }
 
     /**
@@ -172,7 +170,7 @@ public class BluetoothServer {
     private class AcceptThread extends Thread {
         private String mSocketType;
 
-        public AcceptThread(boolean secure) {
+        private AcceptThread(boolean secure) {
             mSocketType = "Secure";
 
             // Create a new listening server socket
@@ -195,7 +193,7 @@ public class BluetoothServer {
             setName("AcceptThread" + mSocketType);
 
             // our temp client socket
-            BluetoothSocket clientSocket = null;
+            BluetoothSocket clientSocket;
             // Listen to the server socket if we're not connected
             while (m_listenState != BTStates.STATE_NONE) {
                 try {
@@ -242,7 +240,7 @@ public class BluetoothServer {
             Log.i(TAG, "END mAcceptThread, socket Type: " + mSocketType);
         }
 
-        public void cancel() {
+        private void cancel() {
             Log.d(TAG, "Socket Type" + mSocketType + " cancel " + this);
             try {
                 if(m_serverSocket != null) {
@@ -265,7 +263,7 @@ public class BluetoothServer {
         private final OutputStream m_outputStream;
         private final String m_deviceName;
 
-        public ConnectedThread(BluetoothSocket socket, String socketType) {
+        private ConnectedThread(BluetoothSocket socket, String socketType) {
             Log.d(TAG, "create ConnectedThread: " + socketType);
             mmSocket = socket;
             InputStream tmpIn = null;
@@ -287,7 +285,7 @@ public class BluetoothServer {
 
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
-            byte[] buffer = new byte[2048];
+            byte[] buffer = new byte[BTUtils.MAX_SOCKET_READ];
             int bytes;
 
             // Keep listening to the InputStream while connected
@@ -295,7 +293,6 @@ public class BluetoothServer {
                 try {
                     // Read from the InputStream
                     bytes = m_inputStream.read(buffer);
-
                     // Send the obtained bytes to the UI Activity
                     m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, bytes, -1, buffer)
                             .sendToTarget();
@@ -307,23 +304,7 @@ public class BluetoothServer {
             }
         }
 
-        /**
-         * Write to the connected OutStream.
-         *
-         * @param buffer The bytes to write
-         */
-        public void write(byte[] buffer) {
-            try {
-                m_outputStream.write(buffer);
-                // Share the sent message back to the UI Activity
-                m_uiHandler.obtainMessage(BTMessages.MESSAGE_WRITE, -1, buffer.length, buffer)
-                        .sendToTarget();
-            } catch (IOException e) {
-                Log.e(TAG, "Exception during write", e);
-            }
-        }
-
-        public void cancel() {
+        private void cancel() {
             try {
                 // close the input/output stream first
                 m_inputStream.close();
@@ -333,6 +314,22 @@ public class BluetoothServer {
                 m_state = BTStates.STATE_NONE;
             } catch (IOException e) {
                 Log.e(TAG, "close() of connect socket failed", e);
+            }
+        }
+
+        /**
+         * Write to the connected OutStream.
+         *
+         * @param buffer The bytes to write
+         */
+        private void write(byte[] buffer) {
+            try {
+                m_outputStream.write(buffer);
+                // Share the sent message back to the UI Activity
+                m_uiHandler.obtainMessage(BTMessages.MESSAGE_WRITE, -1, buffer.length, buffer)
+                        .sendToTarget();
+            } catch (IOException e) {
+                Log.e(TAG, "Exception during write", e);
             }
         }
     }

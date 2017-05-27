@@ -1,11 +1,15 @@
 package com.liquidcode.jukevox.fragments;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
+import com.liquidcode.jukevox.networking.MessageObjects.SongInfo;
+import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
+import com.liquidcode.jukevox.networking.Messaging.MessageParser;
 import com.liquidcode.jukevox.networking.Server.BluetoothServer;
-import com.liquidcode.jukevox.util.BTMessages;
+import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.util.BTUtils;
 
 import android.os.Bundle;
@@ -77,7 +81,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 	}
 
 	private void updateClientCount() {
-		String formattedText = String.format("%d/%d", m_currentClients, BTUtils.MAX_BT_CLIENTS);
+		String formattedText = String.format(Locale.ENGLISH, "%d/%d", m_currentClients, BTUtils.MAX_BT_CLIENTS);
 		// now set the text for the textview
 		m_clientCountText.setText(formattedText);
 	}
@@ -120,61 +124,86 @@ public class ServerFragment extends android.support.v4.app.Fragment {
         @Override
         public void handleMessage(Message msg) {
             switch(msg.what) {
-                case BTMessages.MESSAGE_CLIENT_DEVICE_NAME:
-                    // make a toast with our server we connected to
-                    // save the connected device's name
-                    String clientName = msg.getData().getString(BTMessages.CLIENT_NAME);
-                    m_logText.append("-User Conntected: " + clientName + "\n");
+				case BTMessages.MESSAGE_CLIENT_DEVICE_CONNECTED: {
+					// save the connected device's name
+					String clientName = msg.getData().getString(BTMessages.CLIENT_NAME);
+					m_logText.append("-User Conntected: " + clientName + "\n");
+					// increment the amount of clients connected
 					++m_currentClients;
+					// update our UI
 					updateClientCount();
-                    break;
-				case BTMessages.MESSAGE_READ:
+					// notify clients that we have a new client connected with us
+					// now notify all connected clients that the room counter has changed
+					byte[] outgoing = MessageBuilder.buildClientCountData(m_currentClients);
+					if (m_bluetoothServer != null) {
+						m_bluetoothServer.sendDataToClients(outgoing);
+					}
+					break;
+				}
+				case BTMessages.MESSAGE_READ: {
 					byte[] readBuf = (byte[]) msg.obj;
 					// construct a string from the valid bytes in the buffer
-					processIncomingMessage(readBuf, readBuf.length);
+					processIncomingMessage(readBuf);
 					break;
-				case BTMessages.MESSAGE_STATE_CHANGE:
+				}
+				case BTMessages.MESSAGE_STATE_CHANGE: {
 					// not implemented
 					break;
-				case BTMessages.MESSAGE_TOAST:
+				}
+				case BTMessages.MESSAGE_TOAST: {
 					if (null != getActivity()) {
 						Toast.makeText(getActivity(), msg.getData().getString(BTMessages.TOAST),
 								Toast.LENGTH_SHORT).show();
 					}
 					break;
-				case BTMessages.MESSAGE_USER_DISCONNECT:
+				}
+				case BTMessages.MESSAGE_USER_DISCONNECT: {
 					// decrease the client count
 					String username = msg.getData().getString(BTMessages.CLIENT_NAME);
 					m_logText.append("-User Disconnected: " + username + "\n");
+					// decrement client connections we have
 					--m_currentClients;
+					// update our UI
 					updateClientCount();
+					// notify clients that we have a new client connected with us
+					// now notify all connected clients that the room counter has changed
+					byte[] outgoing = MessageBuilder.buildClientCountData(m_currentClients);
+					if (m_bluetoothServer != null) {
+						m_bluetoothServer.sendDataToClients(outgoing);
+					}
 					break;
+				}
             }
         }
     };
 
-	private void processIncomingMessage(byte[] buffer, int size) {
+	private void processIncomingMessage(byte[] buffer) {
 
         // buffer[0] is always the byte that tells us what message this is ALWAYS
-        byte messageType = buffer[0];
-        // start the current index at 1 because thats where our data truly starts
-        int currentIndex = 1;
-        switch(messageType) {
-			case BTMessages.SM_SONGINFO:
-			    // convert to string
-                String data = new String(buffer, 1, buffer.length-1);
-				// split on our delimeter
-                String[] parts = data.split(String.valueOf(BTMessages.SM_DELIM));
-                String artist = parts[0];
-                String songName = parts[1];
-                m_logText.append("-" + artist + " - " + songName + "\n");
+        switch(buffer[0]) {
+			case BTMessages.SM_SONGINFO: {
+				SongInfo songinfo = MessageParser.parseSongInfo(buffer);
+				if (songinfo != null) {
+//					 send this buffer to all clients since the data was good
+//					 this will build our queue of songs upon being received.
+//					 if there is no song playing there should be a follow up to this message that
+//					 contains the streaming byte data to play
+//					if (m_bluetoothServer != null) {
+//						m_bluetoothServer.sendDataToClients(buffer);
+//					}
+//				}
+					m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
+				}
 				break;
-			case BTMessages.SM_SONGDATA:
+			}
+			case BTMessages.SM_SONGDATA: {
 				// this will be where we take our streamed data and send it to the media service's  AudioTrack
 				break;
-			default:
-				m_logText.append("Unable to read incoming message. Ignoring");
+			}
+			default: {
+				m_logText.append("Unsupported message type received!\n");
 				break;
+			}
 		}
 	}
 

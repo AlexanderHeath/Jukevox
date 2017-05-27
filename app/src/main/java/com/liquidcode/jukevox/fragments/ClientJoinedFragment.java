@@ -3,7 +3,6 @@ package com.liquidcode.jukevox.fragments;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.support.v4.view.PagerAdapter;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -14,12 +13,18 @@ import android.widget.Toast;
 
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
-import com.liquidcode.jukevox.util.BTMessages;
+import com.liquidcode.jukevox.networking.MessageObjects.SongInfo;
+import com.liquidcode.jukevox.networking.Messaging.BTMessages;
+import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
+import com.liquidcode.jukevox.networking.Messaging.MessageParser;
 import com.liquidcode.jukevox.util.BTUtils;
 
-import java.nio.charset.Charset;
+import java.util.Locale;
 
 /**
+ * Fragment that handles the clients current connection to a server room.
+ * This class is responsible for pushing music data and other info to the server.
+ * Also listens for updates from the server about other clients
  * Created by mikev on 5/24/2017.
  */
 public class ClientJoinedFragment extends android.support.v4.app.Fragment {
@@ -45,7 +50,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
 
     /**
      * Sets the bluetooth client that we successfully connected to the server with
-     * @param btc
+     * @param btc - the bluetooth client object that we made a successful connection with
      */
     public void setBluetoothClient(BluetoothClient btc) {
         m_bluetoothClient = btc;
@@ -65,33 +70,13 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     }
 
     private void updateClientCount(int currentClients) {
-        String formattedText = String.format("%d/%d", currentClients, BTUtils.MAX_BT_CLIENTS);
+        String formattedText = String.format(Locale.ENGLISH, "%d/%d", currentClients, BTUtils.MAX_BT_CLIENTS);
         // now set the text for the textview
         m_clientCountText.setText(formattedText);
     }
 
     public void sendSongInfo(String artist, String song) {
-        // get the sizes for the data we're sending
-        // outgoing song data = 1byte header (SM_SONGDATA) + artist length + 1byte delim + song length + 1 byte delim
-        int outSize = 1 + artist.length() + 1 + song.length() + 1;
-        byte[] outgoing = new byte[outSize];
-        // now build our byte data
-        int currentIndex = 0;
-        // song data header
-        outgoing[currentIndex] = BTMessages.SM_SONGINFO;
-        ++currentIndex;
-        // copy artist name bytes
-        System.arraycopy(artist.getBytes(Charset.forName("UTF-8")), 0, outgoing, currentIndex, artist.length());
-        currentIndex += artist.length();
-        // put in delimeter
-        outgoing[currentIndex] = BTMessages.SM_DELIM;
-        ++currentIndex;
-        // copy song name
-        System.arraycopy(song.getBytes(Charset.forName("UTF-8")), 0, outgoing, currentIndex, song.length());
-        currentIndex += song.length();
-        // put in delim
-        outgoing[currentIndex] = BTMessages.SM_DELIM;
-
+        byte[] outgoing = MessageBuilder.buildSongData(artist, song);
         m_bluetoothClient.sendDataToServer(outgoing);
     }
 
@@ -127,9 +112,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             switch(msg.what) {
                 case BTMessages.MESSAGE_READ:
                     byte[] incoming = (byte[])msg.obj;
-                    int begin = (int)msg.arg1;
-                    int end = (int)msg.arg2;
-                    processIncomingMessage(incoming, end);
+                    processIncomingMessage(incoming);
                     break;
                 case BTMessages.MESSAGE_STATE_CHANGE:
                     // not implemented
@@ -154,20 +137,27 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         }
     };
 
-    private void processIncomingMessage(byte[] buffer, int size) {
+    private void processIncomingMessage(byte[] buffer) {
 
         // check the first byte for message type
-        int currentIndex = 0;
-        switch(buffer[currentIndex]) {
-            case BTMessages.SM_CLIENTCOUNT:
+        switch(buffer[0]) {
+            case BTMessages.SM_CLIENTCOUNT: {
                 // increase the index so we are reading our actual message
-                ++currentIndex;
-                int currentClientCount = buffer[currentIndex];
+                int currentClientCount = MessageParser.parseClientCount(buffer);
                 updateClientCount(currentClientCount);
                 break;
-            default:
-                m_logText.append("Unable to read incoming message. Ignoring");
+            }
+            case BTMessages.SM_SONGINFO: {
+                SongInfo songinfo = MessageParser.parseSongInfo(buffer);
+                m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
                 break;
+            }
+            default: {
+                // dont append this right now
+                //m_logText.append("Unsupported message type received!\n");
+                Log.e(TAG, "Unsupported message type received!\n");
+                break;
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
-package com.liquidcode.jukevox.util;
+package com.liquidcode.jukevox.networking.Messaging;
 
 /**
+ * Class that holds networking message definitions
  * Created by mikev on 5/8/2017.
  */
 
@@ -9,7 +10,7 @@ public interface BTMessages {
     int MESSAGE_STATE_CHANGE = 1;
     int MESSAGE_READ = 2;
     int MESSAGE_WRITE = 3;
-    int MESSAGE_CLIENT_DEVICE_NAME = 4;
+    int MESSAGE_CLIENT_DEVICE_CONNECTED = 4;
     int MESSAGE_TOAST = 5;
     int MESSAGE_USER_DISCONNECT = 6;
     int MESSAGE_CONNECTED_TO_SERVER = 7;
