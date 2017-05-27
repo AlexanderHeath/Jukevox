@@ -155,14 +155,21 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 
 	private void processIncomingMessage(byte[] buffer, int size) {
 
-		// check the first byte for message type
-		int currentIndex = 0;
-		switch(buffer[currentIndex]) {
+        // buffer[0] is always the byte that tells us what message this is ALWAYS
+        byte messageType = buffer[0];
+        // start the current index at 1 because thats where our data truly starts
+        int currentIndex = 1;
+        switch(messageType) {
 			case BTMessages.SM_SONGINFO:
+			    // convert to string
+                String data = new String(buffer, 1, buffer.length-1);
 				// split on our delimeter
+                String[] parts = data.split(String.valueOf(BTMessages.SM_DELIM));
+                String artist = parts[0];
+                String songName = parts[1];
+                m_logText.append("-" + artist + " - " + songName + "\n");
 				break;
 			case BTMessages.SM_SONGDATA:
-				// not implemented yet
 				// this will be where we take our streamed data and send it to the media service's  AudioTrack
 				break;
 			default:

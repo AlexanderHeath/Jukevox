@@ -1,5 +1,6 @@
 package com.liquidcode.jukevox.fragments;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -31,6 +32,18 @@ public class SongFragment extends Fragment {
     private static final String ARG_COLUMN_COUNT = "column-count";
     private int mColumnCount = 1;
     private MediaPlayerFragmentActivity m_mediaPlayerFragmentActivity = null;
+    OnSongSelectedListener mSongSelectedListener;
+
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        try {
+            mSongSelectedListener = (OnSongSelectedListener)context;
+        }
+        catch(ClassCastException ex) {
+            throw new ClassCastException(context.toString() + " must implement OnSongSelectedListener!");
+        }
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -56,12 +69,13 @@ public class SongFragment extends Fragment {
                         m_mediaPlayerFragmentActivity = new MediaPlayerFragmentActivity();
                     }
                     Intent mediaPlayerIntent = new Intent(getActivity(), m_mediaPlayerFragmentActivity.getClass());
-                    mediaPlayerIntent.putParcelableArrayListExtra("song_list", m_songList);
-                    mediaPlayerIntent.putExtra("album_name", m_albumName);
-                    mediaPlayerIntent.putExtra("artist_name", m_artistName);
-                    mediaPlayerIntent.putExtra("current_song_index", i);
-                    mediaPlayerIntent.putExtra("album_uri", m_albumArtUri.toString());
-                    startActivity(mediaPlayerIntent);
+//                    mediaPlayerIntent.putParcelableArrayListExtra("song_list", m_songList);
+//                    mediaPlayerIntent.putExtra("album_name", m_albumName);
+//                    mediaPlayerIntent.putExtra("artist_name", m_artistName);
+//                    mediaPlayerIntent.putExtra("current_song_index", i);
+//                    mediaPlayerIntent.putExtra("album_uri", m_albumArtUri.toString());
+//                    startActivity(mediaPlayerIntent);
+                    mSongSelectedListener.onSongSelected(m_artistName, m_songList.get(i).title);
                 }
             });
         }
@@ -119,4 +133,10 @@ public class SongFragment extends Fragment {
     public void onStop() {
         super.onStop();
     }
+
+    // Container Activity must implement this interface
+    public interface OnSongSelectedListener {
+        void onSongSelected(String artist, String songName);
+    }
+
 }

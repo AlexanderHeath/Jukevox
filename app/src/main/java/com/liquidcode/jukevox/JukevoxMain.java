@@ -35,7 +35,7 @@ import com.liquidcode.jukevox.networking.Client.BluetoothClient;
 import java.util.ArrayList;
 
 public class JukevoxMain extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+        implements NavigationView.OnNavigationItemSelectedListener, SongFragment.OnSongSelectedListener {
 
     private static final int NUM_PAGES = 2;
     // view pager
@@ -185,6 +185,14 @@ public class JukevoxMain extends AppCompatActivity
         // See https://g.co/AppIndexing/AndroidStudio for more information.
         AppIndex.AppIndexApi.end(client, getIndexApiAction());
         client.disconnect();
+    }
+
+    @Override
+    public void onSongSelected(String artist, String songName) {
+        if(m_clientJoinedFragment != null && m_clientJoinedFragment.isConnectedToRoom()) {
+            // send the song info to the ClientJoinedFragment
+            m_clientJoinedFragment.sendSongInfo(artist, songName);
+        }
     }
 
     /**

@@ -1,5 +1,9 @@
 package com.liquidcode.jukevox.util;
 
+/**
+ * Created by mikev on 5/8/2017.
+ */
+
 public interface BTMessages {
     // Message types sent from the BluetoothChatService Handler
     int MESSAGE_STATE_CHANGE = 1;
@@ -20,4 +24,6 @@ public interface BTMessages {
     byte SM_CLIENTCOUNT = 1;
     byte SM_SONGINFO = 2;
     byte SM_SONGDATA = 3;
+
+    char SM_DELIM = '#';
 }
