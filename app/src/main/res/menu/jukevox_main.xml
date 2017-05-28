@@ -11,5 +11,11 @@
         android:icon="@drawable/common_full_open_on_phone"
         android:orderInCategory="0"
         android:title="@string/action_disconnect"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_signin"
+        android:icon="@drawable/common_google_signin_btn_icon_dark_normal"
+        android:orderInCategory="0"
+        android:title="@string/action_disconnect"
+        app:showAsAction="ifRoom" />
 </menu>

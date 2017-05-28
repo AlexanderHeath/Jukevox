@@ -1,5 +1,6 @@
 package com.liquidcode.jukevox;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.NavigationView;
@@ -14,14 +15,21 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.appindexing.AppIndex;
 import com.google.android.gms.appindexing.Thing;
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.liquidcode.jukevox.fragments.ClientFragment;
 import com.liquidcode.jukevox.fragments.ClientJoinedFragment;
@@ -37,6 +45,7 @@ import java.util.ArrayList;
 public class JukevoxMain extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, SongFragment.OnSongSelectedListener {
 
+    private static final String TAG = "JukevoxMain";
     private static final int NUM_PAGES = 2;
     // view pager
     private ViewPager m_pager = null;
@@ -54,6 +63,8 @@ public class JukevoxMain extends AppCompatActivity
     private final String SONGFRAG_TAG = "songfrag";
     private ClientJoinedFragment m_clientJoinedFragment = null;
     private final String JOINEDFRAG_TAG = "clientjoined";
+    // request code for our sign in
+    private final int RC_SIGN_IN = 0;
 
     /**
      * ATTENTION: This was auto-generated to implement the App Indexing API.
@@ -67,6 +78,10 @@ public class JukevoxMain extends AppCompatActivity
         setContentView(R.layout.activity_jukevox_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .build();
 
         // set up the view pager
         m_pager = (ViewPager) findViewById(R.id.main_pager);
@@ -84,7 +99,9 @@ public class JukevoxMain extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
         // ATTENTION: This was auto-generated to implement the App Indexing API.
         // See https://g.co/AppIndexing/AndroidStudio for more information.
-        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API)
+                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+                .build();
     }
 
     @Override
@@ -123,8 +140,55 @@ public class JukevoxMain extends AppCompatActivity
                 // close the client or server fragment if we can
                 closeRoomFragments();
                 return true;
+            case R.id.action_signin:
+                signIn();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        // Result returned from launching the Intent from GoogleSignInApi.getSignInIntent(...);
+        if (requestCode == RC_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            handleSignInResult(result);
+        }
+    }
+
+    /**
+     * Prompts the user to sign in
+     */
+    private void signIn() {
+        Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(client);
+        startActivityForResult(signInIntent, RC_SIGN_IN);
+    }
+
+    private void handleSignInResult(GoogleSignInResult result) {
+        Log.d(TAG, "handleSignInResult:" + result.isSuccess());
+        if (result.isSuccess()) {
+            // Signed in successfully, show authenticated UI.
+            GoogleSignInAccount acct = result.getSignInAccount();
+            updateAccountUI(acct);
+            //mStatusTextView.setText(getString(R.string.signed_in_fmt, acct.getDisplayName()));
+            //updateUI(true);
+        }
+    }
+
+    private void updateAccountUI(GoogleSignInAccount acct) {
+        if(acct != null) {
+            // get the name and email textviews
+            TextView accountName = (TextView)findViewById(R.id.account_name);
+            TextView accountEmail = (TextView)findViewById(R.id.account_email);
+            ImageView accountImage = (ImageView)findViewById(R.id.account_image);
+            if(accountName != null && accountEmail != null && accountImage != null) {
+                accountName.setText(acct.getDisplayName());
+                accountEmail.setText(acct.getEmail());
+                accountImage.setImageURI(acct.getPhotoUrl());
+            }
         }
     }
 
@@ -200,7 +264,7 @@ public class JukevoxMain extends AppCompatActivity
      */
     private class JukevoxPagerAdapter extends FragmentStatePagerAdapter {
 
-        public JukevoxPagerAdapter(FragmentManager fm) {
+        private JukevoxPagerAdapter(FragmentManager fm) {
             super(fm);
             m_libraryFragment = new LibraryFragment();
             m_hostClientSelect = new HostClientSelectFragment();
