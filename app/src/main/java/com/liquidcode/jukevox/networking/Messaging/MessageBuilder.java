@@ -19,7 +19,7 @@ public class MessageBuilder {
     public static byte[] buildSongData(String artist, String song) {
         // get the sizes for the data we're sending
         // outgoing song data = 1byte header (SM_SONGINFO) + artist length + 1byte delim + song length + 1 byte delim
-        int outSize = 1 + artist.length() + 1 + song.length() + 1;
+        int outSize = BTMessages.SM_MESSAGEHEADERSIZE + artist.length() + BTMessages.SM_DELIMITERSIZE + song.length() + BTMessages.SM_DELIMITERSIZE;
         byte[] outgoing = new byte[outSize];
         // now build our byte data
         int currentIndex = 0;
@@ -40,10 +40,26 @@ public class MessageBuilder {
         return outgoing;
     }
 
+    /**
+     * Builds the client count message that gets sent to clients
+     * @param clientCount - the current client count
+     * @return byte[] representing the message
+     */
     public static byte[] buildClientCountData(int clientCount) {
         byte[] outgoing = new byte[2];
         outgoing[0] = BTMessages.SM_CLIENTCOUNT;
         outgoing[1] = (byte)clientCount;
+        return outgoing;
+    }
+
+    public static byte[] buildInfoData(String infoToSend) {
+        int currentIndex = 0;
+        byte[] outgoing = new byte[BTMessages.SM_MESSAGEHEADERSIZE + infoToSend.length() + BTMessages.SM_DELIMITERSIZE];
+        outgoing[0] = BTMessages.SM_INFO;
+        ++currentIndex;
+        System.arraycopy(infoToSend.getBytes(Charset.forName("UTF-8")), 0, outgoing, currentIndex, infoToSend.length());
+        currentIndex += infoToSend.length();
+        outgoing[currentIndex] = BTMessages.SM_DELIM; // end message value
         return outgoing;
     }
 }

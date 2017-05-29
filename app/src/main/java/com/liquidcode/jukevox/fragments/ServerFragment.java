@@ -184,20 +184,24 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 			case BTMessages.SM_SONGINFO: {
 				SongInfo songinfo = MessageParser.parseSongInfo(buffer);
 				if (songinfo != null) {
-//					 send this buffer to all clients since the data was good
-//					 this will build our queue of songs upon being received.
-//					 if there is no song playing there should be a follow up to this message that
-//					 contains the streaming byte data to play
-//					if (m_bluetoothServer != null) {
-//						m_bluetoothServer.sendDataToClients(buffer);
-//					}
-//				}
+					//send this buffer to all clients since the data was good
+					//this will build our queue of songs upon being received.
+					//if there is no song playing there should be a follow up to this message that
+					//contains the streaming byte data to play
+					if (m_bluetoothServer != null) {
+						m_bluetoothServer.sendDataToClients(buffer);
+					}
 					m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
 				}
 				break;
 			}
 			case BTMessages.SM_SONGDATA: {
 				// this will be where we take our streamed data and send it to the media service's  AudioTrack
+				break;
+			}
+			case BTMessages.SM_INFO: {
+				String info = MessageParser.parseInfoData(buffer);
+				m_logText.append("Info: " + info + "\n");
 				break;
 			}
 			default: {

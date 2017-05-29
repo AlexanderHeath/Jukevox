@@ -152,6 +152,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
                 break;
             }
+            case BTMessages.SM_INFO: {
+                String info = MessageParser.parseInfoData(buffer);
+                m_logText.append("Info: " + info + "\n");
+                break;
+            }
             default: {
                 // dont append this right now
                 //m_logText.append("Unsupported message type received!\n");

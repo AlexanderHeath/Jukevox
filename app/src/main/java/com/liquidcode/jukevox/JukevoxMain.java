@@ -36,6 +36,7 @@ import com.liquidcode.jukevox.fragments.ClientJoinedFragment;
 import com.liquidcode.jukevox.fragments.ServerFragment;
 import com.liquidcode.jukevox.fragments.HostClientSelectFragment;
 import com.liquidcode.jukevox.fragments.LibraryFragment;
+import com.liquidcode.jukevox.fragments.SettingsFragment;
 import com.liquidcode.jukevox.fragments.SongFragment;
 import com.liquidcode.jukevox.musicobjects.Song;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
@@ -63,6 +64,7 @@ public class JukevoxMain extends AppCompatActivity
     private final String SONGFRAG_TAG = "songfrag";
     private ClientJoinedFragment m_clientJoinedFragment = null;
     private final String JOINEDFRAG_TAG = "clientjoined";
+    private SettingsFragment m_settings = null;
     // request code for our sign in
     private final int RC_SIGN_IN = 0;
 
@@ -113,12 +115,23 @@ public class JukevoxMain extends AppCompatActivity
 
         // we are at the library (home) screen
         if (m_pager.getCurrentItem() == 0) {
+            // check if the settings menu is up and kill it if it is
+            if(m_settings != null) {
+                m_settings = null;
+            }
             // if the SongFragment is open backstack is popped (home screen)
             // if the SongFragment is NOT there closes app.
             super.onBackPressed();
         } else {
-                // Otherwise, select the previous step.
-                m_pager.setCurrentItem(m_pager.getCurrentItem() - 1);
+                if(m_settings != null) {
+                    // the settings menu is up lets close it and kill the object
+                    super.onBackPressed();
+                    m_settings = null;
+                }
+                else {
+                    // Otherwise, select the previous step.
+                    m_pager.setCurrentItem(m_pager.getCurrentItem() - 1);
+                }
         }
     }
 
@@ -142,6 +155,9 @@ public class JukevoxMain extends AppCompatActivity
                 return true;
             case R.id.action_signin:
                 signIn();
+                return true;
+            case R.id.action_settings:
+                createSettingsFragment();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -188,6 +204,29 @@ public class JukevoxMain extends AppCompatActivity
                 accountName.setText(acct.getDisplayName());
                 accountEmail.setText(acct.getEmail());
                 accountImage.setImageURI(acct.getPhotoUrl());
+            }
+        }
+    }
+
+    private void createSettingsFragment() {
+        // don't allow to instances of the settings menu to appear.
+        if(m_settings == null) {
+            m_settings = new SettingsFragment();
+            // add settings fragment
+            if (m_pager.getCurrentItem() == 0) {
+                getFragmentManager().beginTransaction()
+                        //.setCustomAnimations(R.animator.fragment_enter, R.animator.fragment_exit,
+                        //        R.animator.fragment_enter, R.animator.fragment_exit)
+                        .replace(R.id.libraryContainer, m_settings, "settingsfrag_tag")
+                        .addToBackStack(null)
+                        .commit();
+            } else {
+                getFragmentManager().beginTransaction()
+                        //.setCustomAnimations(R.animator.fragment_enter, R.animator.fragment_exit,
+                        //        R.animator.fragment_enter, R.animator.fragment_exit)
+                        .replace(R.id.hostingContainer, m_settings, "settingsfrag_tag")
+                        .addToBackStack(null)
+                        .commit();
             }
         }
     }

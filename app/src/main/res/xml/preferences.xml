@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="User Options">
+        <EditTextPreference
+            android:defaultValue="Default value"
+            android:icon="@android:drawable/sym_def_app_icon"
+            android:key="edit_displayname_preference"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Display Name: " />
+        <EditTextPreference
+            android:defaultValue="Default value"
+            android:icon="@drawable/ic_menu_manage"
+            android:key="edit_servername_preference"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:summary="Name of the room clients will connect to"
+            android:title="Server Name: " />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="Server Options">
+        <SwitchPreference
+            android:defaultValue="false"
+            android:icon="@drawable/ic_menu_share"
+            android:key="switch_connectiontype_preference"
+            android:summaryOff="Uses Bluetooth connection"
+            android:summaryOn="Uses Wifi connection"
+            android:switchTextOff="Bluetooth"
+            android:switchTextOn="WiFi"
+            android:title="Connection Type" />
+
+    </PreferenceCategory>
+</PreferenceScreen>

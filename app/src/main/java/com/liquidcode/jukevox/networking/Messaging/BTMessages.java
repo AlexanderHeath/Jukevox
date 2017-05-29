@@ -20,11 +20,15 @@ public interface BTMessages {
     String CLIENT_NAME = "client_name";
     String SERVER_NAME = "server_name";
     String TOAST = "toast";
-    String CLIENT_COUNT = "client_count";
 
+    // size of our message headers sent through sockets
+    byte SM_MESSAGEHEADERSIZE = 1;
+    byte SM_DELIMITERSIZE = 1;
+    // Message headers
     byte SM_CLIENTCOUNT = 1;
     byte SM_SONGINFO = 2;
     byte SM_SONGDATA = 3;
+    byte SM_INFO = 4;
 
     char SM_DELIM = '#';
 }

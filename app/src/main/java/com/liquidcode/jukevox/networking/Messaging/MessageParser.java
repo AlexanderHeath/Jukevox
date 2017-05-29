@@ -42,4 +42,18 @@ public class MessageParser {
         }
         return clientCount;
     }
+
+    public static String parseInfoData(byte[] incoming) {
+        String info = null;
+        if(incoming.length > 0) {
+            info = new String(incoming, 1, incoming.length-1);
+            // check to see if the last index is our message delimiter and remove it
+            if(info.endsWith(String.valueOf(BTMessages.SM_DELIM))) {
+                StringBuilder sb = new StringBuilder(info);
+                sb.deleteCharAt(info.length()-1);
+                info = sb.toString();
+            }
+        }
+        return info;
+    }
 }
