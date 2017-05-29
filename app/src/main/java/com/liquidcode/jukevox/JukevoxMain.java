@@ -1,6 +1,7 @@
 package com.liquidcode.jukevox;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.NavigationView;
@@ -40,6 +41,8 @@ import com.liquidcode.jukevox.fragments.SettingsFragment;
 import com.liquidcode.jukevox.fragments.SongFragment;
 import com.liquidcode.jukevox.musicobjects.Song;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
+import com.liquidcode.jukevox.util.BTUtils;
+import com.liquidcode.jukevox.util.ConnectionType;
 
 import java.util.ArrayList;
 
@@ -52,7 +55,10 @@ public class JukevoxMain extends AppCompatActivity
     private ViewPager m_pager = null;
     // pager adapter
     private PagerAdapter m_pagerAdapter = null;
-
+    // variables for user options
+    String m_userName;
+    String m_serverName;
+    int m_connectionType;
     // instances of our potential fragments
     private LibraryFragment m_libraryFragment = null;
     private HostClientSelectFragment m_hostClientSelect = null;
@@ -104,6 +110,9 @@ public class JukevoxMain extends AppCompatActivity
         client = new GoogleApiClient.Builder(this).addApi(AppIndex.API)
                 .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
                 .build();
+
+        // load the users options here
+        loadUserOptions();
     }
 
     @Override
@@ -281,6 +290,17 @@ public class JukevoxMain extends AppCompatActivity
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+    }
+
+    @Override
     public void onStop() {
         super.onStop();
 
@@ -288,6 +308,15 @@ public class JukevoxMain extends AppCompatActivity
         // See https://g.co/AppIndexing/AndroidStudio for more information.
         AppIndex.AppIndexApi.end(client, getIndexApiAction());
         client.disconnect();
+    }
+
+    private void loadUserOptions() {
+        // load the users options (username, room name, connection type)
+        // from the shared preferences if they exist
+        SharedPreferences useroptions = getSharedPreferences("useroptions", MODE_PRIVATE);
+        m_userName = useroptions.getString("username", "Default");
+        m_serverName = useroptions.getString("servername", "DefaultServer");
+        m_connectionType = useroptions.getInt("connectiontype", ConnectionType.CONNECTIONTYPE_BLUETOOTH);
     }
 
     @Override
