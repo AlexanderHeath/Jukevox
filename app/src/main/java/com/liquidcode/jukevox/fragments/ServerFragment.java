@@ -32,7 +32,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 	/* request BT enable */
 	private static final int REQUEST_ENABLE = 0x1;
 	private static final int REQUEST_ENABLED_REJECTED = 0x00;
-	private String mRoomName = null;
+	private String m_roomName = null;
 	private BluetoothAdapter mAdapter = null;
 	private TextView m_logText = null;
 	private TextView m_clientCountText = null;
@@ -51,9 +51,9 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		initTextWidgets(root);
 		m_logText.append("-Starting Server...\n");
 		if(getArguments() != null) {
-			mRoomName = getArguments().getString("roomName");
+			m_roomName = getArguments().getString("roomName");
 		}
-		if(mRoomName != null)
+		if(m_roomName != null)
 		{
 			mAdapter = BluetoothAdapter.getDefaultAdapter();
 			if(mAdapter != null) {
@@ -93,7 +93,8 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		{
             mAdapter.enable();
 			// set the bluetooth device name to the room name chosen
-			mAdapter.setName(mRoomName);
+			mAdapter.setName(m_roomName);
+            m_logText.append("-Room Name: " + m_roomName + "\n");
 			m_logText.append("-Server is now discoverable!\n");
 			m_logText.append("-Listening on RFCOMM Channel.\n");
 			m_logText.append("-Waiting for connections.\n");

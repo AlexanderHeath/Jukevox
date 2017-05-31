@@ -15,6 +15,7 @@ import android.support.v4.view.ViewPager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.preference.PreferenceManager;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
@@ -41,8 +42,6 @@ import com.liquidcode.jukevox.fragments.SettingsFragment;
 import com.liquidcode.jukevox.fragments.SongFragment;
 import com.liquidcode.jukevox.musicobjects.Song;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
-import com.liquidcode.jukevox.util.BTUtils;
-import com.liquidcode.jukevox.util.ConnectionType;
 
 import java.util.ArrayList;
 
@@ -57,8 +56,8 @@ public class JukevoxMain extends AppCompatActivity
     private PagerAdapter m_pagerAdapter = null;
     // variables for user options
     String m_userName;
-    String m_serverName;
-    int m_connectionType;
+    String m_roomName;
+    boolean m_connectionType;
     // instances of our potential fragments
     private LibraryFragment m_libraryFragment = null;
     private HostClientSelectFragment m_hostClientSelect = null;
@@ -110,9 +109,6 @@ public class JukevoxMain extends AppCompatActivity
         client = new GoogleApiClient.Builder(this).addApi(AppIndex.API)
                 .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
                 .build();
-
-        // load the users options here
-        loadUserOptions();
     }
 
     @Override
@@ -210,10 +206,19 @@ public class JukevoxMain extends AppCompatActivity
             TextView accountEmail = (TextView)findViewById(R.id.account_email);
             ImageView accountImage = (ImageView)findViewById(R.id.account_image);
             if(accountName != null && accountEmail != null && accountImage != null) {
-                accountName.setText(acct.getDisplayName());
+                updateUserName(acct.getDisplayName());
                 accountEmail.setText(acct.getEmail());
                 accountImage.setImageURI(acct.getPhotoUrl());
             }
+        }
+    }
+
+    private void updateUserName(String username) {
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        NavigationView navView = (NavigationView) drawer.findViewById(R.id.nav_view);
+        TextView accountName = (TextView)navView.getHeaderView(0).findViewById(R.id.account_name);
+        if(accountName != null) {
+            accountName.setText(username);
         }
     }
 
@@ -292,7 +297,7 @@ public class JukevoxMain extends AppCompatActivity
     @Override
     public void onResume() {
         super.onResume();
-
+        loadUserOptions();
     }
 
     @Override
@@ -310,13 +315,18 @@ public class JukevoxMain extends AppCompatActivity
         client.disconnect();
     }
 
-    private void loadUserOptions() {
+    /**
+     * Polls the SharedPreferences and loads the user options
+     */
+    public void loadUserOptions() {
         // load the users options (username, room name, connection type)
         // from the shared preferences if they exist
-        SharedPreferences useroptions = getSharedPreferences("useroptions", MODE_PRIVATE);
-        m_userName = useroptions.getString("username", "Default");
-        m_serverName = useroptions.getString("servername", "DefaultServer");
-        m_connectionType = useroptions.getInt("connectiontype", ConnectionType.CONNECTIONTYPE_BLUETOOTH);
+        SharedPreferences useroptions = PreferenceManager.getDefaultSharedPreferences(this);
+        m_userName = useroptions.getString("edit_displayname_preference", "Default");
+        m_roomName = useroptions.getString("edit_servername_preference", "DefaultServer");
+        m_connectionType = useroptions.getBoolean("switch_connectiontype_preference", false);
+        // update our username
+        updateUserName(m_userName);
     }
 
     @Override
@@ -409,16 +419,17 @@ public class JukevoxMain extends AppCompatActivity
             }
         }
     }
+
     /**
      * Creates the server room fragment
      */
-    public void createServerRoomFragment(String roomName) {
+    public void createServerRoomFragment() {
         // if fragment is null create it
         if(m_serverFragment == null) {
             m_serverFragment = new ServerFragment();
         }
         Bundle args = new Bundle();
-        args.putString("roomName", roomName);
+        args.putString("roomName", m_roomName);
         m_serverFragment.setArguments(args);
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ft.setCustomAnimations(R.anim.fragment_enter, R.anim.fragment_exit, R.anim.fragment_enter, R.anim.fragment_exit)
@@ -435,6 +446,8 @@ public class JukevoxMain extends AppCompatActivity
         if(m_clientFragment == null) {
             m_clientFragment = new ClientFragment();
         }
+        // set the clients username
+        m_clientFragment.updateClientUsername(m_userName);
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ft.setCustomAnimations(R.anim.fragment_enter, R.anim.fragment_exit, R.anim.fragment_enter, R.anim.fragment_exit)
                 .replace(R.id.hostingContainer, m_clientFragment, CLIENTFRAG_TAG)
@@ -442,6 +455,11 @@ public class JukevoxMain extends AppCompatActivity
                 .commit();
     }
 
+    /**
+     * Creates the ClientJoinedFragment that will hold the ConnectedThread
+     * This fragment will be in charge of sending updates and other info based on User interactions
+     * @param btc - the bluetooth client that we made a successful connection with
+     */
     public void createClientJoinedRoomFragment(BluetoothClient btc) {
         if(m_clientJoinedFragment == null) {
             m_clientJoinedFragment = new ClientJoinedFragment();
@@ -470,6 +488,9 @@ public class JukevoxMain extends AppCompatActivity
                 .commit();
     }
 
+    /**
+     * Closes all the room fragments and cleans up threads
+     */
     private void closeRoomFragments() {
         // try to find the server fragment and remove it
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
@@ -508,6 +529,6 @@ public class JukevoxMain extends AppCompatActivity
      * This is called when there is an error in the initialization of the fragment
      */
     public void removeCurrentFragment() {
-        getSupportFragmentManager().popBackStack();
+        closeRoomFragments();
     }
 }

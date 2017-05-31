@@ -20,8 +20,6 @@ import com.liquidcode.jukevox.R;
 
 public class HostClientSelectFragment extends Fragment {
     private static final String TAG = "HostClientFragment";
-    // the name of the room we are creating
-    private String m_roomName = null;
     // ViewGroup to pass around
     private ViewGroup m_rootView = null;
     // instance for the server room
@@ -51,7 +49,8 @@ public class HostClientSelectFragment extends Fragment {
             startServerButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    CreateRoomNameAlert();
+                    //CreateRoomNameAlert();
+                    ((JukevoxMain)getActivity()).createServerRoomFragment();
                 }
             });
 
@@ -71,28 +70,29 @@ public class HostClientSelectFragment extends Fragment {
     /**
      * Prompts the user to create a name for the room and starts the intent
      */
-    private void CreateRoomNameAlert() {
-        final EditText input = new EditText(getActivity());
-        input.setSingleLine(true);
-        // ask the user for room name
-        new AlertDialog.Builder(getActivity())
-                .setTitle("JukeVox")
-                .setMessage("Enter room name:")
-                .setView(input)
-                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int whichButton) {
-                        String result = input.getText().toString().trim();
-                        if (!result.equals("")) {
-                            m_roomName = input.getText().toString();
-                            ((JukevoxMain)getActivity()).createServerRoomFragment(m_roomName);
-                        }
-                    }
-                }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-
-            }
-        }).show();
-    }
+//    private void CreateRoomNameAlert() {
+//        final EditText input = new EditText(getActivity());
+//        input.setSingleLine(true);
+//        input.setText(m_roomName);
+//        // ask the user for room name
+//        new AlertDialog.Builder(getActivity())
+//                .setTitle("JukeVox")
+//                .setMessage("Enter room name:")
+//                .setView(input)
+//                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+//                    public void onClick(DialogInterface dialog, int whichButton) {
+//                        String result = input.getText().toString().trim();
+//                        if (!result.equals("")) {
+//                            m_roomName = input.getText().toString();
+//                            ((JukevoxMain)getActivity()).createServerRoomFragment(m_roomName);
+//                        }
+//                    }
+//                }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+//            public void onClick(DialogInterface dialog, int whichButton) {
+//
+//            }
+//        }).show();
+//    }
 
     /**
      * Creates the client room fragment

@@ -48,6 +48,7 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 	private static final int  REQUEST_ENABLE = 0x01;
 	/* request permissions to use bluetooth device discovery */
 	private static final int REQUEST_DEVICE_DISCOVERY = 0x03;
+	private static final int REQUEST_COARSE_LOCATION = 0x04;
 
 	// our list adapter for potential rooms
 	private ArrayAdapter m_deviceListAdapter = null;
@@ -85,6 +86,13 @@ public class ClientFragment extends android.support.v4.app.Fragment {
             checkPermissionAndRegisterReceivers();
         }
 		return root;
+	}
+
+	public void updateClientUsername(String name) {
+		m_btAdapter = BluetoothAdapter.getDefaultAdapter();
+		if(m_btAdapter != null) {
+			m_btAdapter.setName(name);
+		}
 	}
 
 	/**
@@ -229,6 +237,24 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 		}
 	}
 
+	@Override
+	public void onRequestPermissionsResult(int requestCode,
+										   String permissions[], int[] grantResults) {
+		switch (requestCode) {
+			case REQUEST_COARSE_LOCATION:
+				// If request is cancelled, the result arrays are empty.
+				if (grantResults.length > 0
+						&& grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+					startBluetoothDiscovery();
+				}
+				else {
+					// permission not granted! lets bail
+					((JukevoxMain)getActivity()).removeCurrentFragment();
+				}
+				return;
+		}
+	}
+
 	private void checkDiscoveryPermissions()
 	{
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {  // Only ask for these permissions on runtime when running Android 6.0 or higher
@@ -241,10 +267,9 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 							.setNeutralButton("Okay", new DialogInterface.OnClickListener() {
 								@Override
 								public void onClick(DialogInterface dialog, int which) {
-									if (ContextCompat.checkSelfPermission(getActivity().getBaseContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-										ActivityCompat.requestPermissions(getActivity(),
-												new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-												REQUEST_DEVICE_DISCOVERY);
+									if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+										requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+												REQUEST_COARSE_LOCATION);
 									}
 								}
 							})
