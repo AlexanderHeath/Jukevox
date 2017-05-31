@@ -45,6 +45,7 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
         android:background="@color/colorBlackMatte"
-        android:layout_below="@+id/clientCountText" />
+        android:layout_below="@+id/clientCountText"
+        android:id="@+id/room_song_list"/>
 
 </RelativeLayout>

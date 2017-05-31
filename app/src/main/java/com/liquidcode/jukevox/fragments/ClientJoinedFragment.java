@@ -1,17 +1,22 @@
 package com.liquidcode.jukevox.fragments;
 
+import android.database.DataSetObserver;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.liquidcode.jukevox.R;
+import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
 import com.liquidcode.jukevox.networking.MessageObjects.SongInfo;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
@@ -19,6 +24,7 @@ import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
 import com.liquidcode.jukevox.networking.Messaging.MessageParser;
 import com.liquidcode.jukevox.util.BTUtils;
 
+import java.util.ArrayList;
 import java.util.Locale;
 
 /**
@@ -36,6 +42,10 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private BluetoothClient m_bluetoothClient = null;
     // are we currently connected to a room?
     private boolean m_isConnectedToRoom = false;
+    private QueuedSongAdapter m_queueAdapter = null;
+    private ListView m_queueListview = null;
+    // list of queued song that we get from the server
+    private ArrayList<SongInfo> m_queuedSongList = null;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -43,8 +53,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         ViewGroup root = (ViewGroup) inflater.inflate(
                 R.layout.room_layout, container, false);
 
+        m_queuedSongList = new ArrayList<>();
         // init the text widgets so we can be updated by the server
-        initTextWidgets(root);
+        initWidgets(root);
         return root;
     }
 
@@ -63,6 +74,21 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             Log.e(TAG, "BTJoined received a NULL BluetoothClient!!");
         }
     }
+
+    private void initWidgets(ViewGroup root) {
+        // init the listview and adapter
+        m_queueListview = (ListView)root.findViewById(R.id.room_song_list);
+        if(m_queueListview != null) {
+            // create the adapter that we will notify changes with
+            if(m_queueAdapter == null) {
+                m_queueAdapter = new QueuedSongAdapter(getActivity(), R.layout.server_song_list_child, m_queuedSongList);
+            }
+            m_queueListview.setAdapter(m_queueAdapter);
+        }
+
+        initTextWidgets(root);
+    }
+
     private void initTextWidgets(ViewGroup root) {
         m_logText = (TextView)root.findViewById(R.id.serverLogText);
         m_logText.setMovementMethod(new ScrollingMovementMethod());
@@ -106,7 +132,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     /**
      * The Handler that gets information back from the BluetoothChatService
      */
-    private final Handler mHandler = new Handler() {
+    private final Handler mHandler = new Handler(Looper.getMainLooper()) {
         @Override
         public void handleMessage(Message msg) {
             switch(msg.what) {
@@ -149,6 +175,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             }
             case BTMessages.SM_SONGINFO: {
                 SongInfo songinfo = MessageParser.parseSongInfo(buffer);
+                if(songinfo != null) {
+                    m_queueAdapter.add(songinfo);
+                }
                 m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
                 break;
             }

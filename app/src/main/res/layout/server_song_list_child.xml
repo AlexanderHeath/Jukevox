@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/sl_song_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:background="@color/colorBlack"
+        android:textColor="@color/colorPrimary"
+        android:text="Song"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/sl_artist_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/sl_song_name"
+        android:background="@color/colorBlack"
+        android:textColor="@color/colorPrimaryDark"
+        android:text="Artist"
+        android:textSize="18sp" />
+</RelativeLayout>
