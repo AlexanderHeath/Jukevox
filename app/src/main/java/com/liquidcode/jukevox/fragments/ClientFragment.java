@@ -63,6 +63,7 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 	private BluetoothClient m_bluetoothClient = null;
 	// temporary EditText to test message sending
 	private EditText m_editText = null;
+    private String m_clientName;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -89,10 +90,7 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 	}
 
 	public void updateClientUsername(String name) {
-		m_btAdapter = BluetoothAdapter.getDefaultAdapter();
-		if(m_btAdapter != null) {
-			m_btAdapter.setName(name);
-		}
+		m_clientName = name;
 	}
 
 	/**
@@ -228,6 +226,9 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 		// TODO Auto-generated method stub
 		if (requestCode == REQUEST_ENABLE) {
 			if(resultCode == RESULT_OK) {
+                m_btAdapter.enable();
+				// update and make sure the client has the correct name
+				m_btAdapter.setName(m_clientName);
 				// check for permissions and register the receivers
                 checkPermissionAndRegisterReceivers();
 			}

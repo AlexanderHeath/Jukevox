@@ -53,7 +53,6 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         ViewGroup root = (ViewGroup) inflater.inflate(
                 R.layout.room_layout, container, false);
 
-        m_queuedSongList = new ArrayList<>();
         // init the text widgets so we can be updated by the server
         initWidgets(root);
         return root;
@@ -76,12 +75,16 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     }
 
     private void initWidgets(ViewGroup root) {
+        // if the arraylist of songInfo is null create it
+        if(m_queuedSongList == null) {
+            m_queuedSongList = new ArrayList<>();
+        }
         // init the listview and adapter
         m_queueListview = (ListView)root.findViewById(R.id.room_song_list);
         if(m_queueListview != null) {
             // create the adapter that we will notify changes with
             if(m_queueAdapter == null) {
-                m_queueAdapter = new QueuedSongAdapter(getActivity(), R.layout.server_song_list_child, m_queuedSongList);
+                m_queueAdapter = new QueuedSongAdapter(getActivity(), m_queuedSongList);
             }
             m_queueListview.setAdapter(m_queueAdapter);
         }
@@ -95,7 +98,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         m_clientCountText = (TextView)root.findViewById(R.id.clientCountText);
     }
 
-    private void updateClientCount(int currentClients) {
+    private synchronized void updateClientCount(int currentClients) {
         String formattedText = String.format(Locale.ENGLISH, "%d/%d", currentClients, BTUtils.MAX_BT_CLIENTS);
         // now set the text for the textview
         m_clientCountText.setText(formattedText);
@@ -163,6 +166,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         }
     };
 
+
     private void processIncomingMessage(byte[] buffer) {
 
         // check the first byte for message type
@@ -176,7 +180,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             case BTMessages.SM_SONGINFO: {
                 SongInfo songinfo = MessageParser.parseSongInfo(buffer);
                 if(songinfo != null) {
-                    m_queueAdapter.add(songinfo);
+                    m_queuedSongList.add(songinfo);
+                    m_queueAdapter.notifyDataSetChanged();
+                    m_queueListview.setAdapter(m_queueAdapter);
                 }
                 m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
                 break;

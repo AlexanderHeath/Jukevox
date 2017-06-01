@@ -5,6 +5,7 @@ import java.util.Locale;
 
 import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
+import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
 import com.liquidcode.jukevox.networking.MessageObjects.SongInfo;
 import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
 import com.liquidcode.jukevox.networking.Messaging.MessageParser;
@@ -23,6 +24,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,6 +43,11 @@ public class ServerFragment extends android.support.v4.app.Fragment {
     private BluetoothServer m_bluetoothServer = null;
 	// our connection variables for the UI
 	private int m_currentClients = 0; // start at 0 clients
+	// Queue list variables
+	private QueuedSongAdapter m_queueAdapter = null;
+	private ListView m_queueListview = null;
+	// list of queued song that we get from the server
+	private ArrayList<SongInfo> m_queuedSongList = null;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -48,7 +55,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		ViewGroup root = (ViewGroup) inflater.inflate(
 				R.layout.room_layout, container, false);
 
-		initTextWidgets(root);
+		initWidgets(root);
 		m_logText.append("-Starting Server...\n");
 		if(getArguments() != null) {
 			m_roomName = getArguments().getString("roomName");
@@ -72,6 +79,24 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 			((JukevoxMain)getActivity()).removeCurrentFragment();
 		}
 		return root;
+	}
+
+	private void initWidgets(ViewGroup root) {
+		// if the arraylist of songInfo is null create it
+		if(m_queuedSongList == null) {
+			m_queuedSongList = new ArrayList<>();
+		}
+		// init the listview and adapter
+		m_queueListview = (ListView) root.findViewById(R.id.room_song_list);
+		if (m_queueListview != null) {
+			// create the adapter that we will notify changes with
+			if (m_queueAdapter == null) {
+				m_queueAdapter = new QueuedSongAdapter(getActivity(), m_queuedSongList);
+			}
+			m_queueListview.setAdapter(m_queueAdapter);
+		}
+		// init our text widgets here
+		initTextWidgets(root);
 	}
 
 	private void initTextWidgets(ViewGroup root) {
@@ -185,6 +210,10 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 			case BTMessages.SM_SONGINFO: {
 				SongInfo songinfo = MessageParser.parseSongInfo(buffer);
 				if (songinfo != null) {
+					// update the queued list to reflect the new song we received from a client
+					m_queuedSongList.add(songinfo);
+					m_queueAdapter.notifyDataSetChanged();
+					m_queueListview.setAdapter(m_queueAdapter);
 					//send this buffer to all clients since the data was good
 					//this will build our queue of songs upon being received.
 					//if there is no song playing there should be a follow up to this message that
