@@ -152,17 +152,12 @@ public class ServerFragment extends android.support.v4.app.Fragment {
             switch(msg.what) {
 				case BTMessages.MESSAGE_CLIENT_DEVICE_CONNECTED: {
 					// save the connected device's name
-					String clientName = msg.getData().getString(BTMessages.CLIENT_NAME);
-					m_logText.append("-User Conntected: " + clientName + "\n");
-					// increment the amount of clients connected
-					++m_currentClients;
-					// update our UI
-					updateClientCount();
-					// notify clients that we have a new client connected with us
-					// now notify all connected clients that the room counter has changed
-					byte[] outgoing = MessageBuilder.buildClientCountData(m_currentClients);
+					byte newClientID = msg.getData().getByte(BTMessages.CLIENT_ID);
+					// send a message to this client, with their ID, and requesting their display name
+					byte[] outgoing = MessageBuilder.buildClientIdData(newClientID);
 					if (m_bluetoothServer != null) {
-						m_bluetoothServer.sendDataToClients(outgoing);
+						// send the client his ID
+						m_bluetoothServer.sendDataToClient(newClientID, outgoing);
 					}
 					break;
 				}

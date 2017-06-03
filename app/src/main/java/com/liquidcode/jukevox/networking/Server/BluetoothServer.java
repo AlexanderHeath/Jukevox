@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
+import com.liquidcode.jukevox.networking.Client.ClientInfo;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.util.BTStates;
 import com.liquidcode.jukevox.util.BTUtils;
@@ -42,9 +43,10 @@ public class BluetoothServer {
     private int m_listenState;
     // thread that will run to accept incoming connections
     private AcceptThread m_acceptThread = null;
-    private HashMap<String, ConnectedThread> m_clientConnections = null;
+    private HashMap<ClientInfo, ConnectedThread> m_clientConnections = null;
     // the server socket
     private BluetoothServerSocket m_serverSocket = null;
+    private byte m_currentClientID = 0;  // start client ID's at 0
 
     public BluetoothServer(Handler uiHandler) {
         m_uiHandler = uiHandler;
@@ -89,7 +91,7 @@ public class BluetoothServer {
             m_acceptThread = null;
         }
 
-        for(HashMap.Entry<String, ConnectedThread> clientConnection : m_clientConnections.entrySet()) {
+        for(HashMap.Entry<ClientInfo, ConnectedThread> clientConnection : m_clientConnections.entrySet()) {
             // close all connections and null out the thread
             clientConnection.getValue().cancel();
         }
@@ -100,11 +102,26 @@ public class BluetoothServer {
         m_listenState = BTStates.STATE_NONE;
     }
 
+    public void sendDataToClient(byte clientID, byte[] out) {
+        ConnectedThread outThread = null;
+        for(ClientInfo info : m_clientConnections.keySet()) {
+            // find our client
+            if(clientID == info.getClientID()) {
+                // send the message
+                synchronized (this) {
+                    if (m_state != BTStates.STATE_CONNECTED) return;
+                    outThread = m_clientConnections.get(info);
+                }
+                outThread.write(out);
+            }
+        }
+    }
+
     public void sendDataToClients(byte[] out) {
         // Create temporary object
         ConnectedThread r;
         // Synchronize a copy of the ConnectedThread
-        for(HashMap.Entry<String, ConnectedThread> clientConnection : m_clientConnections.entrySet()) {
+        for(HashMap.Entry<ClientInfo, ConnectedThread> clientConnection : m_clientConnections.entrySet()) {
             synchronized (this) {
                 if (m_state != BTStates.STATE_CONNECTED) return;
                 r = clientConnection.getValue();
@@ -122,14 +139,21 @@ public class BluetoothServer {
         // also add it to the hashmap so we can keep track of it
         ConnectedThread newClientThread = new ConnectedThread(socket, socketType);
         String clientName = device.getName();
+        // create a new ID for this client and add that to the hashmap
+        ClientInfo newClient = new ClientInfo();
+        newClient.setClientID(m_currentClientID++);
+        // this is probably not the correct name but its okay because we will ask the client
+        // to send us their real display name
+        newClient.setClientName(clientName);
         newClientThread.start();
-        m_clientConnections.put(clientName, newClientThread);
+        m_clientConnections.put(newClient, newClientThread);
         // Send the name of the connected device back to the UI Activity
         // This is the UI Handler from our ServerFragment that we need to update
         Message msg = m_uiHandler.obtainMessage(BTMessages.MESSAGE_CLIENT_DEVICE_CONNECTED);
-        Bundle bundle = new Bundle();
-        bundle.putString(BTMessages.CLIENT_NAME, clientName);
-        msg.setData(bundle);
+        // send the client ID to the client we just connected to
+        Bundle idBundle = new Bundle();
+        idBundle.putByte(BTMessages.CLIENT_ID, newClient.getClientID());
+        msg.setData(idBundle);
         m_uiHandler.sendMessage(msg);
     }
 

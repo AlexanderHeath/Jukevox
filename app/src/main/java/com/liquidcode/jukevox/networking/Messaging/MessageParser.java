@@ -43,6 +43,11 @@ public class MessageParser {
         return clientCount;
     }
 
+    /**
+     * Parses info sent by server/client
+     * @param incoming
+     * @return
+     */
     public static String parseInfoData(byte[] incoming) {
         String info = null;
         if(incoming.length > 0) {
@@ -55,5 +60,13 @@ public class MessageParser {
             }
         }
         return info;
+    }
+
+    public static byte parseCientIDData(byte[] incoming) {
+        byte id = 0;
+        if(incoming.length > 0) {
+            id = incoming[1];
+        }
+        return id;
     }
 }

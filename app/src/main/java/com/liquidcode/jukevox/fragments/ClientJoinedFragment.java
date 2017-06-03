@@ -46,6 +46,8 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private ListView m_queueListview = null;
     // list of queued song that we get from the server
     private ArrayList<SongInfo> m_queuedSongList = null;
+    // our unique ID from the server
+    private byte m_id;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -190,6 +192,10 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             case BTMessages.SM_INFO: {
                 String info = MessageParser.parseInfoData(buffer);
                 m_logText.append("Info: " + info + "\n");
+                break;
+            }
+            case BTMessages.SM_CLIENTID: {
+                m_id = MessageParser.parseCientIDData(buffer);
                 break;
             }
             default: {

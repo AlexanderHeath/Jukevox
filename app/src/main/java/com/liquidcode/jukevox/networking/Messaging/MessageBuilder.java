@@ -52,6 +52,11 @@ public class MessageBuilder {
         return outgoing;
     }
 
+    /**
+     * Builds info data to be sent by both server and client
+     * @param infoToSend - String with the data to be sent
+     * @return - the byte array of our data
+     */
     public static byte[] buildInfoData(String infoToSend) {
         int currentIndex = 0;
         byte[] outgoing = new byte[BTMessages.SM_MESSAGEHEADERSIZE + infoToSend.length() + BTMessages.SM_DELIMITERSIZE];
@@ -60,6 +65,18 @@ public class MessageBuilder {
         System.arraycopy(infoToSend.getBytes(Charset.forName("UTF-8")), 0, outgoing, currentIndex, infoToSend.length());
         currentIndex += infoToSend.length();
         outgoing[currentIndex] = BTMessages.SM_DELIM; // end message value
+        return outgoing;
+    }
+
+    /**
+     * Builds the message for sending clients their id's
+     * @param newID - the client ID
+     * @return - byte array
+     */
+    public static byte[] buildClientIdData(byte newID) {
+        byte[] outgoing = new byte[2];
+        outgoing[0] = BTMessages.SM_CLIENTID;
+        outgoing[1] = newID;
         return outgoing;
     }
 }

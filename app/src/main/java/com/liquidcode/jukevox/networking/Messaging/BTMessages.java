@@ -19,6 +19,7 @@ public interface BTMessages {
     // Key names received from the BluetoothChatService Handler
     String CLIENT_NAME = "client_name";
     String SERVER_NAME = "server_name";
+    String CLIENT_ID = "client_id";
     String TOAST = "toast";
 
     // size of our message headers sent through sockets
@@ -29,6 +30,8 @@ public interface BTMessages {
     byte SM_SONGINFO = 2;
     byte SM_SONGDATA = 3;
     byte SM_INFO = 4;
+    byte SM_REQUESTUSERNAME = 5;
+    byte SM_CLIENTID = 6;
 
     char SM_DELIM = '#';
 }
