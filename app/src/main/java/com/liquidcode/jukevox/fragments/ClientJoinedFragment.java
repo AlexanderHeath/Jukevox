@@ -196,6 +196,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             }
             case BTMessages.SM_CLIENTID: {
                 m_id = MessageParser.parseCientIDData(buffer);
+                // send our response
+                byte[] out = MessageBuilder.buildMessageResponse(m_id, BTMessages.SM_CLIENTID);
+                if(m_bluetoothClient != null) {
+                    m_bluetoothClient.sendDataToServer(out);
+                }
                 break;
             }
             default: {

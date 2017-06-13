@@ -79,4 +79,21 @@ public class MessageBuilder {
         outgoing[1] = newID;
         return outgoing;
     }
+
+    /**
+     * Builds a message response that gets sent to the server
+     * @param clientID - the clients ID
+     * @param respondToMessage - the message (SM_xxx) that we are sending a response for
+     * @return the byte array of the message
+     */
+    public static byte[] buildMessageResponse(byte clientID, byte respondToMessage) {
+        byte[] outgoing = new byte[3];
+        // put the response header
+        outgoing[0] = BTMessages.SMR_RESPONSE;
+        // put the client ID
+        outgoing[1] = clientID;
+        // put the message that we are repsonding to
+        outgoing[2] = respondToMessage;
+        return outgoing;
+    }
 }

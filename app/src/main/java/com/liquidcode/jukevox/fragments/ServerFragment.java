@@ -229,6 +229,12 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 				m_logText.append("Info: " + info + "\n");
 				break;
 			}
+			case BTMessages.SMR_RESPONSE:
+				// Handle the responses
+				if(m_bluetoothServer != null) {
+					m_bluetoothServer.handleResponseMessage(buffer[1], MessageParser.parseResponse(buffer));
+				}
+				break;
 			default: {
 				m_logText.append("Unsupported message type received!\n");
 				break;

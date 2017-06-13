@@ -62,11 +62,24 @@ public class MessageParser {
         return info;
     }
 
+    /**
+     * Parses the client ID message and gets the new ID value
+     * @param incoming - the incoming byte array
+     * @return
+     */
     public static byte parseCientIDData(byte[] incoming) {
         byte id = 0;
         if(incoming.length > 0) {
             id = incoming[1];
         }
         return id;
+    }
+
+    public static byte parseResponse(byte[] incoming) {
+        byte messageResponse = 0;
+        if(incoming.length > 0) {
+            messageResponse = incoming[2];
+        }
+        return messageResponse;
     }
 }
