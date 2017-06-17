@@ -351,7 +351,7 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 						if (message.length() > 0) {
 							// Get the message bytes
 							byte[] send = message.getBytes();
-							m_bluetoothClient.sendDataToServer(send);
+							m_bluetoothClient.sendDataToServer(send, false);
 							// Reset out string buffer to zero and clear the edit text field
 							m_editText.setText("");
 						}
@@ -365,7 +365,7 @@ public class ClientFragment extends android.support.v4.app.Fragment {
 					if (message.length() > 0) {
 						// Get the message bytes
 						byte[] send = message.getBytes();
-						m_bluetoothClient.sendDataToServer(send);
+						m_bluetoothClient.sendDataToServer(send, false);
 						// Reset out string buffer to zero and clear the edit text field
 						m_editText.setText("");
 					}

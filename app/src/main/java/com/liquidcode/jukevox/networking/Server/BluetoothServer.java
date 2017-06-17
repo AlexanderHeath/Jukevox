@@ -175,6 +175,7 @@ public class BluetoothServer {
             if(clientThread != null) {
                 clientThread.cancel();
             }
+
             m_clientConnections.remove(clientName);
         }
         // if there are no clients changes the state to STATE_NONE
@@ -216,6 +217,15 @@ public class BluetoothServer {
                     // we got a response to this message now remove it
                     sentMessages.remove(sent);
                 }
+            }
+        }
+    }
+
+    public synchronized void updateClientDisplayName(byte clientid, String displayName) {
+        for(ClientInfo info : m_clientConnections.keySet()) {
+            // find our client
+            if (clientid == info.getClientID()) {
+                info.setClientName(displayName);
             }
         }
     }

@@ -465,7 +465,7 @@ public class JukevoxMain extends AppCompatActivity
             m_clientJoinedFragment = new ClientJoinedFragment();
         }
         // set the bluetoothclient
-        m_clientJoinedFragment.setBluetoothClient(btc);
+        m_clientJoinedFragment.initializeClient(m_userName, btc);
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ft.setCustomAnimations(R.anim.fragment_enter, R.anim.fragment_exit, R.anim.fragment_enter, R.anim.fragment_exit)
                 .replace(R.id.hostingContainer, m_clientJoinedFragment, JOINEDFRAG_TAG)

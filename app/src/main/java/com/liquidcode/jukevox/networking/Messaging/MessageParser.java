@@ -1,6 +1,7 @@
 package com.liquidcode.jukevox.networking.Messaging;
 
-import com.liquidcode.jukevox.networking.MessageObjects.SongInfo;
+import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
+import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 
 /**
  * MessageParser
@@ -14,17 +15,19 @@ public class MessageParser {
      * @param incoming - incoming byte[] from the socket
      * @return - An object wrapping the artist/song name
      */
-    public static SongInfo parseSongInfo(byte[] incoming) {
-        SongInfo songinfo = null;
+    public static SongInfoWrapper parseSongInfo(byte[] incoming) {
+        SongInfoWrapper songinfo = null;
         if(incoming.length > 0) {
+            // get the client id
+            byte clientID = incoming[1];
             // process buffer
             // convert to string
-            String data = new String(incoming, 1, incoming.length-1);
+            String data = new String(incoming, 2, incoming.length-2);
             // split on our delimiter
             String[] parts = data.split(String.valueOf(BTMessages.SM_DELIM));
             String artist = parts[0];
             String songName = parts[1];
-            songinfo = new SongInfo(artist, songName);
+            songinfo = new SongInfoWrapper(artist, songName, clientID);
         }
         return songinfo;
     }
@@ -48,18 +51,20 @@ public class MessageParser {
      * @param incoming
      * @return
      */
-    public static String parseInfoData(byte[] incoming) {
+    public static BasicStringWrapper parseInfoData(byte[] incoming) {
         String info = null;
+        byte clientID;
+        BasicStringWrapper infowrapper = null;
         if(incoming.length > 0) {
-            info = new String(incoming, 1, incoming.length-1);
+            // get clients id
+            clientID = incoming[1];
+            // get the info string
+            info = new String(incoming, 2, incoming.length-2);
+            String[] parts = info.split(String.valueOf(BTMessages.SM_DELIM));
             // check to see if the last index is our message delimiter and remove it
-            if(info.endsWith(String.valueOf(BTMessages.SM_DELIM))) {
-                StringBuilder sb = new StringBuilder(info);
-                sb.deleteCharAt(info.length()-1);
-                info = sb.toString();
-            }
+            infowrapper = new BasicStringWrapper(parts[0], clientID);
         }
-        return info;
+        return infowrapper;
     }
 
     /**
@@ -75,10 +80,44 @@ public class MessageParser {
         return id;
     }
 
+    public static BasicStringWrapper parseClientDisplayName(byte[] incoming) {
+        BasicStringWrapper info = null;
+        String name;
+        byte clientID;
+        if(incoming.length > 0) {
+            // get clients id
+            clientID = incoming[1];
+            // get the info string
+            name = new String(incoming, 2, incoming.length-2);
+            String[] parts = name.split(String.valueOf(BTMessages.SM_DELIM));
+            // check to see if the last index is our message delimiter and remove it
+            info = new BasicStringWrapper(parts[0], clientID);
+        }
+        return info;
+    }
+
+    /**
+     * Parses a response message for the SM code
+     * @param incoming
+     * @return
+     */
     public static byte parseResponse(byte[] incoming) {
         byte messageResponse = 0;
         if(incoming.length > 0) {
             messageResponse = incoming[2];
+        }
+        return messageResponse;
+    }
+
+    /**
+     * Parses a response message from the server
+     * @param incoming
+     * @return
+     */
+    public static byte parseServerResponse(byte[] incoming) {
+        byte messageResponse = 0;
+        if(incoming.length > 0) {
+            messageResponse = incoming[1];
         }
         return messageResponse;
     }

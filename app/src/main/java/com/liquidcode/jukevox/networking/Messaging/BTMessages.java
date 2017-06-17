@@ -25,13 +25,15 @@ public interface BTMessages {
     // size of our message headers sent through sockets
     byte SM_MESSAGEHEADERSIZE = 1;
     byte SM_DELIMITERSIZE = 1;
+    byte SM_CLIENTIDSIZE = 1;
     // Message headers ( 1 - 50 reserved for requests )
     byte SM_CLIENTCOUNT = 1;
     byte SM_SONGINFO = 2;
     byte SM_SONGDATA = 3;
     byte SM_INFO = 4;
-    byte SM_REQUESTUSERNAME = 5;
+    byte SM_CLIENTDISPLAYNAME= 5;
     byte SM_CLIENTID = 6;
+
     // Response message headers (reserved 51 - 100)
     byte SMR_RESPONSE = 51;
 

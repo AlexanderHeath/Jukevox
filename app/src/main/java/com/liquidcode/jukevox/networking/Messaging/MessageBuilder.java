@@ -16,15 +16,18 @@ public class MessageBuilder {
      * @param song - the song name
      * @return byte[] of our data
      */
-    public static byte[] buildSongData(String artist, String song) {
+    public static byte[] buildSongData(byte clientID, String artist, String song) {
         // get the sizes for the data we're sending
-        // outgoing song data = 1byte header (SM_SONGINFO) + artist length + 1byte delim + song length + 1 byte delim
-        int outSize = BTMessages.SM_MESSAGEHEADERSIZE + artist.length() + BTMessages.SM_DELIMITERSIZE + song.length() + BTMessages.SM_DELIMITERSIZE;
+        // outgoing song data = 1byte header (SM_SONGINFO) + clientidsize + artist length + 1byte delim + song length + 1 byte delim
+        int outSize = BTMessages.SM_MESSAGEHEADERSIZE + BTMessages.SM_CLIENTIDSIZE + artist.length() + BTMessages.SM_DELIMITERSIZE + song.length() + BTMessages.SM_DELIMITERSIZE;
         byte[] outgoing = new byte[outSize];
         // now build our byte data
         int currentIndex = 0;
         // song data header
         outgoing[currentIndex] = BTMessages.SM_SONGINFO;
+        ++currentIndex;
+        // client id
+        outgoing[currentIndex] = clientID;
         ++currentIndex;
         // copy artist name bytes
         System.arraycopy(artist.getBytes(Charset.forName("UTF-8")), 0, outgoing, currentIndex, artist.length());
@@ -69,6 +72,24 @@ public class MessageBuilder {
     }
 
     /**
+     * Builds info data to be sent by both server and client
+     * @param infoToSend - String with the data to be sent
+     * @return - the byte array of our data
+     */
+    public static byte[] buildInfoData(byte clientID, String infoToSend) {
+        int currentIndex = 0;
+        byte[] outgoing = new byte[BTMessages.SM_MESSAGEHEADERSIZE + BTMessages.SM_CLIENTIDSIZE + infoToSend.length() + BTMessages.SM_DELIMITERSIZE];
+        outgoing[currentIndex] = BTMessages.SM_INFO;
+        ++currentIndex;
+        outgoing[currentIndex] = clientID;
+        ++currentIndex;
+        System.arraycopy(infoToSend.getBytes(Charset.forName("UTF-8")), 0, outgoing, currentIndex, infoToSend.length());
+        currentIndex += infoToSend.length();
+        outgoing[currentIndex] = BTMessages.SM_DELIM; // end message value
+        return outgoing;
+    }
+
+    /**
      * Builds the message for sending clients their id's
      * @param newID - the client ID
      * @return - byte array
@@ -80,8 +101,39 @@ public class MessageBuilder {
         return outgoing;
     }
 
-    /**
+    public static byte[] buildClientNameData(byte clientID, String clientName) {
+        byte[] outgoing = new byte[BTMessages.SM_MESSAGEHEADERSIZE + BTMessages.SM_CLIENTIDSIZE + clientName.length() + BTMessages.SM_DELIMITERSIZE];
+        int currentIndex = 0;
+        outgoing[currentIndex] = BTMessages.SM_CLIENTDISPLAYNAME;
+        ++currentIndex;
+        // put the client id
+        outgoing[currentIndex] = clientID;
+        ++currentIndex;
+        // put the clients name
+        System.arraycopy(clientName.getBytes(Charset.forName("UTF-8")), 0, outgoing, currentIndex, clientName.length());
+        currentIndex += clientName.length();
+        outgoing[currentIndex] = BTMessages.SM_DELIM; // end message value
+        return outgoing;
+    }
+
+    /** USED BY THE SERVER IT DOESNT NEED AN ID
      * Builds a message response that gets sent to the server
+     * Formatting is [SMR_RESPONSE][CLIENT_ID][MESSAGE WE ARE RESPONDING TO]
+     * @param respondToMessage - the message (SM_xxx) that we are sending a response for
+     * @return the byte array of the message
+     */
+    public static byte[] buildMessageResponse(byte respondToMessage) {
+        byte[] outgoing = new byte[3];
+        // put the response header
+        outgoing[0] = BTMessages.SMR_RESPONSE;
+        // put the message that we are repsonding to
+        outgoing[2] = respondToMessage;
+        return outgoing;
+    }
+
+    /** USED BY THE CLIENTS
+     * Builds a message response that gets sent to the server
+     * Formatting is [SMR_RESPONSE][CLIENT_ID][MESSAGE WE ARE RESPONDING TO]
      * @param clientID - the clients ID
      * @param respondToMessage - the message (SM_xxx) that we are sending a response for
      * @return the byte array of the message

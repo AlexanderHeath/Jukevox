@@ -6,11 +6,11 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.ListAdapter;
 import android.widget.TextView;
 import com.liquidcode.jukevox.R;
-import com.liquidcode.jukevox.networking.MessageObjects.SongInfo;
+import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
+
 import java.util.ArrayList;
 
 /**
@@ -18,10 +18,10 @@ import java.util.ArrayList;
  */
 
 public class QueuedSongAdapter extends RecyclerView.Adapter implements ListAdapter {
-    private ArrayList<SongInfo> m_queuedList = null;
+    private ArrayList<SongInfoWrapper> m_queuedList = null;
     private Context m_context = null;
 
-    public QueuedSongAdapter(Context context, ArrayList<SongInfo> items) {
+    public QueuedSongAdapter(Context context, ArrayList<SongInfoWrapper> items) {
         m_context = context;
         m_queuedList = items;
     }
@@ -52,7 +52,7 @@ public class QueuedSongAdapter extends RecyclerView.Adapter implements ListAdapt
     }
 
     @Override
-    public SongInfo getItem(int i) {
+    public SongInfoWrapper getItem(int i) {
         return m_queuedList.get(i);
     }
 

@@ -6,7 +6,8 @@ import java.util.Locale;
 import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
-import com.liquidcode.jukevox.networking.MessageObjects.SongInfo;
+import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
+import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
 import com.liquidcode.jukevox.networking.Messaging.MessageParser;
 import com.liquidcode.jukevox.networking.Server.BluetoothServer;
@@ -47,7 +48,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 	private QueuedSongAdapter m_queueAdapter = null;
 	private ListView m_queueListview = null;
 	// list of queued song that we get from the server
-	private ArrayList<SongInfo> m_queuedSongList = null;
+	private ArrayList<SongInfoWrapper> m_queuedSongList = null;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -203,7 +204,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
         // buffer[0] is always the byte that tells us what message this is ALWAYS
         switch(buffer[0]) {
 			case BTMessages.SM_SONGINFO: {
-				SongInfo songinfo = MessageParser.parseSongInfo(buffer);
+				SongInfoWrapper songinfo = MessageParser.parseSongInfo(buffer);
 				if (songinfo != null) {
 					// update the queued list to reflect the new song we received from a client
 					m_queuedSongList.add(songinfo);
@@ -225,10 +226,25 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 				break;
 			}
 			case BTMessages.SM_INFO: {
-				String info = MessageParser.parseInfoData(buffer);
-				m_logText.append("Info: " + info + "\n");
+				BasicStringWrapper info = MessageParser.parseInfoData(buffer);
+				m_logText.append("Info: " + info.getStringData() + "\n");
+				// send the response
+
 				break;
 			}
+			case BTMessages.SM_CLIENTDISPLAYNAME:
+				// a client is sending its name to us. parse it and notify of new connection
+				BasicStringWrapper newclient = MessageParser.parseClientDisplayName(buffer);
+				if(newclient != null) {
+					// we got a valid client
+					if(m_bluetoothServer != null) {
+						m_bluetoothServer.updateClientDisplayName(newclient.getClientID(), newclient.getStringData());
+						// send response to client
+						m_bluetoothServer.sendDataToClient(newclient.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_CLIENTDISPLAYNAME));
+						m_logText.append("User: " + newclient.getStringData() + " Connected!\n");
+					}
+				}
+				break;
 			case BTMessages.SMR_RESPONSE:
 				// Handle the responses
 				if(m_bluetoothServer != null) {

@@ -1,6 +1,5 @@
 package com.liquidcode.jukevox.fragments;
 
-import android.database.DataSetObserver;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -10,7 +9,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -18,7 +16,8 @@ import android.widget.Toast;
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
-import com.liquidcode.jukevox.networking.MessageObjects.SongInfo;
+import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
+import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
 import com.liquidcode.jukevox.networking.Messaging.MessageParser;
@@ -45,9 +44,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private QueuedSongAdapter m_queueAdapter = null;
     private ListView m_queueListview = null;
     // list of queued song that we get from the server
-    private ArrayList<SongInfo> m_queuedSongList = null;
+    private ArrayList<SongInfoWrapper> m_queuedSongList = null;
     // our unique ID from the server
     private byte m_id;
+    // our display name
+    private String m_displayName;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -60,11 +61,16 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         return root;
     }
 
+    public void initializeClient(String displayName, BluetoothClient btc) {
+        m_displayName = displayName;
+        setBluetoothClient(btc);
+    }
+
     /**
      * Sets the bluetooth client that we successfully connected to the server with
      * @param btc - the bluetooth client object that we made a successful connection with
      */
-    public void setBluetoothClient(BluetoothClient btc) {
+    private void setBluetoothClient(BluetoothClient btc) {
         m_bluetoothClient = btc;
         // update the handler so we get the new messages now
         if(m_bluetoothClient != null) {
@@ -107,8 +113,8 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     }
 
     public void sendSongInfo(String artist, String song) {
-        byte[] outgoing = MessageBuilder.buildSongData(artist, song);
-        m_bluetoothClient.sendDataToServer(outgoing);
+        byte[] outgoing = MessageBuilder.buildSongData(m_id, artist, song);
+        m_bluetoothClient.sendDataToServer(outgoing, false);
     }
 
     /**
@@ -180,7 +186,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 break;
             }
             case BTMessages.SM_SONGINFO: {
-                SongInfo songinfo = MessageParser.parseSongInfo(buffer);
+                SongInfoWrapper songinfo = MessageParser.parseSongInfo(buffer);
                 if(songinfo != null) {
                     m_queuedSongList.add(songinfo);
                     m_queueAdapter.notifyDataSetChanged();
@@ -190,8 +196,8 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 break;
             }
             case BTMessages.SM_INFO: {
-                String info = MessageParser.parseInfoData(buffer);
-                m_logText.append("Info: " + info + "\n");
+                BasicStringWrapper info = MessageParser.parseInfoData(buffer);
+                m_logText.append("Info: " + info.getStringData() + "\n");
                 break;
             }
             case BTMessages.SM_CLIENTID: {
@@ -199,10 +205,18 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 // send our response
                 byte[] out = MessageBuilder.buildMessageResponse(m_id, BTMessages.SM_CLIENTID);
                 if(m_bluetoothClient != null) {
-                    m_bluetoothClient.sendDataToServer(out);
+                    m_bluetoothClient.sendDataToServer(out, true);
+                    // we got our client id and responded now tell the server our display name
+                    m_bluetoothClient.sendDataToServer(MessageBuilder.buildClientNameData(m_id, m_displayName), false);
                 }
                 break;
             }
+            case BTMessages.SMR_RESPONSE:
+                // Handle the responses
+                if(m_bluetoothClient != null) {
+                    m_bluetoothClient.handleResponseMessage(MessageParser.parseServerResponse(buffer));
+                }
+                break;
             default: {
                 // dont append this right now
                 //m_logText.append("Unsupported message type received!\n");

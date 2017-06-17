@@ -9,12 +9,15 @@ import android.os.Message;
 import android.util.Log;
 
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
+import com.liquidcode.jukevox.networking.Messaging.SentMessage;
 import com.liquidcode.jukevox.util.BTStates;
 import com.liquidcode.jukevox.util.BTUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.UUID;
 
 /**
@@ -42,13 +45,16 @@ public class BluetoothClient {
     private Handler m_uiHandler = null;
     // client socket that we opened with our current server
     private BluetoothSocket m_clientSocket = null;
-
+    // this is our list of sent messages
+    // we will use this to see if we need to resend a message that we never got a response from
+    private ArrayList<SentMessage> m_sentMessageList = null;
 
     // constructor
     public BluetoothClient(Handler uiHandler) {
         m_uiHandler = uiHandler;
         m_btAdapter = BluetoothAdapter.getDefaultAdapter();
         m_state = BTStates.STATE_NONE;
+        m_sentMessageList = new ArrayList<>();
     }
 
     // our interface to connect to a device
@@ -91,7 +97,12 @@ public class BluetoothClient {
         }
     }
 
-    public void sendDataToServer(byte[] out) {
+    /**
+     * Sends data to server
+     * @param out - the message we are sending
+     * @param isResponse - if this message is a response. We dont add responses to the sent queue
+     */
+    public void sendDataToServer(byte[] out, boolean isResponse) {
         // Create temporary object
         ConnectedThread r;
         // Synchronize a copy of the ConnectedThread
@@ -101,6 +112,11 @@ public class BluetoothClient {
         }
         // Perform the write unsynchronized
         r.write(out);
+        // if this message isnt a response then lets add it to the sent queue
+        if(!isResponse) {
+            // add this message to the sent list
+            addSentMessageToList(out);
+        }
     }
 
     /**
@@ -143,8 +159,35 @@ public class BluetoothClient {
         m_uiHandler.sendMessage(msg);
     }
 
+    /**
+     * Sets the UI handler
+     * @param uiHandler
+     */
     public void updateUIHandler(Handler uiHandler) {
         m_uiHandler = uiHandler;
+    }
+
+    /**
+     * Adds a message to the sent queue
+     * @param data
+     */
+    private void addSentMessageToList(byte[] data) {
+        // build a new sent message and add it to the list
+        SentMessage newSent = new SentMessage(data[0], data);
+        m_sentMessageList.add(newSent);
+    }
+
+    /**
+     * Handles a response message from the server
+     * @param messageID
+     */
+    public synchronized void handleResponseMessage(byte messageID) {
+        for(SentMessage sent : m_sentMessageList) {
+            if (sent.getMessageID() == messageID) {
+                // we got a response to this message now remove it
+                m_sentMessageList.remove(sent);
+            }
+        }
     }
 
     /**
