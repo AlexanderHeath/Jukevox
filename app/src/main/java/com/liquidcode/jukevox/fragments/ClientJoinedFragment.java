@@ -13,6 +13,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
@@ -169,6 +170,8 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                         m_logText.append("Disconnected from server: " + serverName + "\n");
                     }
                     m_isConnectedToRoom = false;
+                    // close this fragment since we arent connected anymore
+                    ((JukevoxMain)getActivity()).closeRoomFragments();
                     break;
             }
         }

@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.UUID;
 
 /**
@@ -143,13 +144,15 @@ public class BluetoothServer {
     private synchronized void connectToClient(BluetoothSocket socket, BluetoothDevice
             device, final String socketType) {
         Log.d(TAG, "connected, Socket Type:" + socketType);
+        // TODO: Generate client ID a different way?
+        byte newClientID = m_currentClientID++;
         // Create a new thread for the incoming connection and start it
         // also add it to the hashmap so we can keep track of it
-        ConnectedThread newClientThread = new ConnectedThread(socket, socketType);
+        ConnectedThread newClientThread = new ConnectedThread(socket, socketType, newClientID);
         String clientName = device.getName();
         // create a new ID for this client and add that to the hashmap
         ClientInfo newClient = new ClientInfo();
-        newClient.setClientID(m_currentClientID++);
+        newClient.setClientID(newClientID);
         // this is probably not the correct name but its okay because we will ask the client
         // to send us their real display name
         newClient.setClientName(clientName);
@@ -168,31 +171,45 @@ public class BluetoothServer {
     /**
      * Indicate that the connection was lost and notify the UI Activity.
      */
-    private void disconnectClient(String clientName) {
+    private void disconnectClient(byte clientID) {
         // cancel this connection thread and remove it
-        if(m_clientConnections.containsKey(clientName)) {
-            ConnectedThread clientThread = m_clientConnections.get(clientName);
-            if(clientThread != null) {
-                clientThread.cancel();
+        String clientName;
+        ConnectedThread clientThread = null;
+        ClientInfo disconnectedClient = null;
+        // find the client
+        for(HashMap.Entry<ClientInfo, ConnectedThread> clientConnection : m_clientConnections.entrySet()) {
+            if(clientConnection.getKey().getClientID() == clientID) {
+                clientName = clientConnection.getKey().getClientName();
+                clientThread = clientConnection.getValue();
+                disconnectedClient = new ClientInfo();
+                disconnectedClient.setClientID(clientID);
+                disconnectedClient.setClientName(clientName);
             }
-
-            m_clientConnections.remove(clientName);
         }
+        // stop this users ConnectedThread
+        if(clientThread != null) {
+            clientThread.cancel();
+            // now remove from our connected client list
+            m_clientConnections.remove(disconnectedClient);
+        }
+
         // if there are no clients changes the state to STATE_NONE
         if(m_clientConnections.isEmpty()) {
             m_state = BTStates.STATE_NONE;
         }
-        // Send a failure message back to the Activity
-        Message msg = m_uiHandler.obtainMessage(BTMessages.MESSAGE_USER_DISCONNECT);
-        Bundle bundle = new Bundle();
-        bundle.putString(BTMessages.CLIENT_NAME, clientName);
-        msg.setData(bundle);
-        m_uiHandler.sendMessage(msg);
-        // now notify all connected clients that the room counter has changed
-        byte[] outgoing = new byte[2];
-        outgoing[0] = BTMessages.SM_CLIENTCOUNT;
-        outgoing[1] = (byte)m_clientConnections.size();
-        sendDataToClients(outgoing);
+        if(disconnectedClient != null) {
+            // Send a message back to the Activity so the UI can be updated and messages can be sent to clients
+            Message msg = m_uiHandler.obtainMessage(BTMessages.MESSAGE_USER_DISCONNECT);
+            Bundle bundle = new Bundle();
+            bundle.putString(BTMessages.CLIENT_NAME, disconnectedClient.getClientName());
+            msg.setData(bundle);
+            m_uiHandler.sendMessage(msg);
+            // now notify all connected clients that the room counter has changed
+            byte[] outgoing = new byte[2];
+            outgoing[0] = BTMessages.SM_CLIENTCOUNT;
+            outgoing[1] = (byte) m_clientConnections.size();
+            sendDataToClients(outgoing);
+        }
     }
 
     private void addSentMessageToList(byte client, byte[] data) {
@@ -212,10 +229,12 @@ public class BluetoothServer {
     public synchronized void handleResponseMessage(byte clientID, byte messageID) {
         if(m_sentMessageList.containsKey(clientID)) {
             ArrayList<SentMessage> sentMessages = m_sentMessageList.get(clientID);
-            for(SentMessage sent : sentMessages) {
-                if(sent.getMessageID() == messageID) {
+            Iterator<SentMessage> iter = sentMessages.iterator();
+            while(iter.hasNext()) {
+                SentMessage mess = iter.next();
+                if(mess.getMessageID() == messageID) {
                     // we got a response to this message now remove it
-                    sentMessages.remove(sent);
+                    iter.remove();
                 }
             }
         }
@@ -331,8 +350,9 @@ public class BluetoothServer {
         private final InputStream m_inputStream;
         private final OutputStream m_outputStream;
         private final String m_deviceName;
+        private final byte m_clientId;
 
-        private ConnectedThread(BluetoothSocket socket, String socketType) {
+        private ConnectedThread(BluetoothSocket socket, String socketType, byte clientID) {
             Log.d(TAG, "create ConnectedThread: " + socketType);
             mmSocket = socket;
             InputStream tmpIn = null;
@@ -349,6 +369,7 @@ public class BluetoothServer {
             m_deviceName = socket.getRemoteDevice().getName();
             m_inputStream = tmpIn;
             m_outputStream = tmpOut;
+            m_clientId = clientID;
             m_state = BTStates.STATE_CONNECTED;
         }
 
@@ -367,7 +388,7 @@ public class BluetoothServer {
                             .sendToTarget();
                 } catch (IOException e) {
                     Log.e(TAG, "disconnected", e);
-                    disconnectClient(m_deviceName);
+                    disconnectClient(m_clientId);
                     break;
                 }
             }

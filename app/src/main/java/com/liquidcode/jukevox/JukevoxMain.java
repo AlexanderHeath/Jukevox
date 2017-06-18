@@ -491,7 +491,7 @@ public class JukevoxMain extends AppCompatActivity
     /**
      * Closes all the room fragments and cleans up threads
      */
-    private void closeRoomFragments() {
+    public void closeRoomFragments() {
         // try to find the server fragment and remove it
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ServerFragment sf = (ServerFragment)getSupportFragmentManager().findFragmentByTag(SERVERFRAG_TAG);
