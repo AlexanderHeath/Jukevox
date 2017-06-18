@@ -183,6 +183,10 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 // increase the index so we are reading our actual message
                 int currentClientCount = MessageParser.parseClientCount(buffer);
                 updateClientCount(currentClientCount);
+                // send our repsonse
+                if(m_bluetoothClient != null) {
+                    m_bluetoothClient.sendDataToServer(MessageBuilder.buildMessageResponse(BTMessages.SM_CLIENTCOUNT), true);
+                }
                 break;
             }
             case BTMessages.SM_SONGINFO: {

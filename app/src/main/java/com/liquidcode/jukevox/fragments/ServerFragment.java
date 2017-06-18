@@ -241,7 +241,12 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 						m_bluetoothServer.updateClientDisplayName(newclient.getClientID(), newclient.getStringData());
 						// send response to client
 						m_bluetoothServer.sendDataToClient(newclient.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_CLIENTDISPLAYNAME));
-						m_logText.append("User: " + newclient.getStringData() + " Connected!\n");
+						m_logText.append("User: " + newclient.getStringData() + " joined the room!\n");
+						// increase the number of connected clients
+						++m_currentClients;
+						// now lets tell the clients that a new client connected
+						m_bluetoothServer.sendDataToClients(MessageBuilder.buildClientCountData(m_currentClients));
+						updateClientCount();
 					}
 				}
 				break;
