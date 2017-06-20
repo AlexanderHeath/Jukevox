@@ -22,6 +22,9 @@ public interface BTMessages {
     String CLIENT_ID = "client_id";
     String TOAST = "toast";
 
+    // default time delay that a sent message waits before resending
+    float DEFAULT_DELAY = 10.0f;
+
     // size of our message headers sent through sockets
     byte SM_MESSAGEHEADERSIZE = 1;
     byte SM_DELIMITERSIZE = 1;
@@ -31,7 +34,7 @@ public interface BTMessages {
     byte SM_SONGINFO = 2;
     byte SM_SONGDATA = 3;
     byte SM_INFO = 4;
-    byte SM_CLIENTDISPLAYNAME= 5;
+    byte SM_CLIENTDISPLAYNAME = 5;
     byte SM_CLIENTID = 6;
 
     // Response message headers (reserved 51 - 100)

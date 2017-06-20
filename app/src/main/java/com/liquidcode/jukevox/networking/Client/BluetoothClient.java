@@ -9,6 +9,7 @@ import android.os.Message;
 import android.util.Log;
 
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
+import com.liquidcode.jukevox.networking.Messaging.ClientSentMessageThread;
 import com.liquidcode.jukevox.networking.Messaging.SentMessage;
 import com.liquidcode.jukevox.util.BTStates;
 import com.liquidcode.jukevox.util.BTUtils;
@@ -47,14 +48,13 @@ public class BluetoothClient {
     private BluetoothSocket m_clientSocket = null;
     // this is our list of sent messages
     // we will use this to see if we need to resend a message that we never got a response from
-    private ArrayList<SentMessage> m_sentMessageList = null;
+    private ClientSentMessageThread m_sentMessageThread = null;
 
     // constructor
     public BluetoothClient(Handler uiHandler) {
         m_uiHandler = uiHandler;
         m_btAdapter = BluetoothAdapter.getDefaultAdapter();
         m_state = BTStates.STATE_NONE;
-        m_sentMessageList = new ArrayList<>();
     }
 
     // our interface to connect to a device
@@ -72,8 +72,13 @@ public class BluetoothClient {
                 // lets create the thread
                 m_connectThread = new ConnectThread(secure);
             }
+            if(m_sentMessageThread == null) {
+                m_sentMessageThread = new ClientSentMessageThread(this);
+            }
             // start the thread
             m_connectThread.start();
+            // start the sentMessage thread
+            m_sentMessageThread.start();
         }
         return status;
     }
@@ -95,14 +100,19 @@ public class BluetoothClient {
             m_connectedThread.cancel();
             m_connectedThread = null;
         }
+
+        if(m_sentMessageThread != null) {
+            m_sentMessageThread.cancel();
+            m_sentMessageThread = null;
+        }
     }
 
     /**
      * Sends data to server
      * @param out - the message we are sending
-     * @param isResponse - if this message is a response. We dont add responses to the sent queue
+     * @param addToSentQueue - if this message is a response. We dont add responses to the sent queue
      */
-    public void sendDataToServer(byte[] out, boolean isResponse) {
+    public void sendDataToServer(byte[] out, boolean addToSentQueue) {
         // Create temporary object
         ConnectedThread r;
         // Synchronize a copy of the ConnectedThread
@@ -113,7 +123,7 @@ public class BluetoothClient {
         // Perform the write unsynchronized
         r.write(out);
         // if this message isnt a response then lets add it to the sent queue
-        if(!isResponse) {
+        if(addToSentQueue) {
             // add this message to the sent list
             addSentMessageToList(out);
         }
@@ -173,8 +183,7 @@ public class BluetoothClient {
      */
     private void addSentMessageToList(byte[] data) {
         // build a new sent message and add it to the list
-        SentMessage newSent = new SentMessage(data[0], data);
-        m_sentMessageList.add(newSent);
+        m_sentMessageThread.addMessage(data);
     }
 
     /**
@@ -182,12 +191,7 @@ public class BluetoothClient {
      * @param messageID
      */
     public synchronized void handleResponseMessage(byte messageID) {
-        for(SentMessage sent : m_sentMessageList) {
-            if (sent.getMessageID() == messageID) {
-                // we got a response to this message now remove it
-                m_sentMessageList.remove(sent);
-            }
-        }
+        m_sentMessageThread.handleResponseMessage(messageID);
     }
 
     /**

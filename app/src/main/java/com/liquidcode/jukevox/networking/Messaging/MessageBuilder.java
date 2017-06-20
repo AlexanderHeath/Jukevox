@@ -126,7 +126,7 @@ public class MessageBuilder {
         byte[] outgoing = new byte[3];
         // put the response header
         outgoing[0] = BTMessages.SMR_RESPONSE;
-        // put the message that we are repsonding to
+        // put the message that we are responding to
         outgoing[2] = respondToMessage;
         return outgoing;
     }

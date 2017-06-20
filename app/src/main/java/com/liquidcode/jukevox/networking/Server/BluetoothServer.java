@@ -11,7 +11,9 @@ import android.util.Log;
 
 import com.liquidcode.jukevox.networking.Client.ClientInfo;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
+import com.liquidcode.jukevox.networking.Messaging.MessageParser;
 import com.liquidcode.jukevox.networking.Messaging.SentMessage;
+import com.liquidcode.jukevox.networking.Messaging.SentMessageThread;
 import com.liquidcode.jukevox.util.BTStates;
 import com.liquidcode.jukevox.util.BTUtils;
 
@@ -21,6 +23,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -50,9 +53,8 @@ public class BluetoothServer {
     // the server socket
     private BluetoothServerSocket m_serverSocket = null;
     private byte m_currentClientID = 0;  // start client ID's at 0
-    // this is our list of sent messages
-    // the key is the client. and the data is a list of SentMessage's
-    private HashMap<Byte, ArrayList<SentMessage>> m_sentMessageList = null;
+    // Thread that runs in the background and resends messages
+    private SentMessageThread m_sentThread = null;
 
     public BluetoothServer(Handler uiHandler) {
         m_uiHandler = uiHandler;
@@ -60,7 +62,7 @@ public class BluetoothServer {
         m_state = BTStates.STATE_NONE;
         m_listenState = BTStates.STATE_NONE;
         m_clientConnections = new HashMap<>();
-        m_sentMessageList = new HashMap<>();
+        m_sentThread = new SentMessageThread(this);
     }
 
     /**
@@ -75,6 +77,14 @@ public class BluetoothServer {
         }
         // start the thread
         m_acceptThread.start();
+        // start the SentMessageThread too so it can process sent messages
+        if(m_sentThread == null) {
+            // Create the Sent Thread if we need to
+            m_sentThread = new SentMessageThread(this);
+        }
+        if(m_sentThread != null) {
+            m_sentThread.start();
+        }
     }
 
     /**
@@ -85,6 +95,10 @@ public class BluetoothServer {
         if(m_acceptThread != null) {
             m_acceptThread.cancel();
             m_acceptThread = null;
+        }
+        if(m_sentThread != null) {
+            m_sentThread.cancel();
+            m_sentThread = null;
         }
     }
 
@@ -109,7 +123,13 @@ public class BluetoothServer {
         m_listenState = BTStates.STATE_NONE;
     }
 
-    public void sendDataToClient(byte clientID, byte[] out) {
+    /**
+     * Sends a message to a specific client
+     * @param clientID - the client
+     * @param out - the message in byte array form
+     * @param addToSentQueue - if we need to add this message to the sent queue
+     */
+    public void sendDataToClient(byte clientID, byte[] out, boolean addToSentQueue) {
         ConnectedThread outThread;
         for(ClientInfo info : m_clientConnections.keySet()) {
             // find our client
@@ -120,12 +140,19 @@ public class BluetoothServer {
                     outThread = m_clientConnections.get(info);
                 }
                 outThread.write(out);
-                addSentMessageToList(clientID, out);
+                if(m_sentThread != null && addToSentQueue) {
+                    m_sentThread.addMessage(clientID, out);
+                }
             }
         }
     }
 
-    public void sendDataToClients(byte[] out) {
+    /**
+     * Sends Message to all clients
+     * @param out - the message to send
+     * @param addToSentQueue - if we need to add this message to the sent queue or not
+     */
+    public void sendDataToClients(byte[] out, boolean addToSentQueue) {
         // Create temporary object
         ConnectedThread r;
         // Synchronize a copy of the ConnectedThread
@@ -136,10 +163,17 @@ public class BluetoothServer {
             }
             // Perform the write unsynchronized
             r.write(out);
-            addSentMessageToList(clientConnection.getKey().getClientID(), out);
+            if(m_sentThread != null && addToSentQueue) {
+                m_sentThread.addMessage(clientConnection.getKey().getClientID(), out);
+            }
         }
     }
 
+    public void handleResponseMessage(byte clientID, byte[] data) {
+        if(m_sentThread != null) {
+            m_sentThread.handleResponseMessage(clientID, MessageParser.parseResponse(data));
+        }
+    }
 
     private synchronized void connectToClient(BluetoothSocket socket, BluetoothDevice
             device, final String socketType) {
@@ -208,35 +242,7 @@ public class BluetoothServer {
             byte[] outgoing = new byte[2];
             outgoing[0] = BTMessages.SM_CLIENTCOUNT;
             outgoing[1] = (byte) m_clientConnections.size();
-            sendDataToClients(outgoing);
-        }
-    }
-
-    private void addSentMessageToList(byte client, byte[] data) {
-        // build a new sent message and add it to the list
-        SentMessage newSent = new SentMessage(data[0], data);
-        if(m_sentMessageList.containsKey(client)) {
-            // it exists. get the arraylist and push the message
-            m_sentMessageList.get(client).add(newSent);
-        } else {
-            // doesnt exist Create a new array list and add this message
-            ArrayList<SentMessage> newList = new ArrayList<>();
-            newList.add(newSent);
-            m_sentMessageList.put(client, newList);
-        }
-    }
-
-    public synchronized void handleResponseMessage(byte clientID, byte messageID) {
-        if(m_sentMessageList.containsKey(clientID)) {
-            ArrayList<SentMessage> sentMessages = m_sentMessageList.get(clientID);
-            Iterator<SentMessage> iter = sentMessages.iterator();
-            while(iter.hasNext()) {
-                SentMessage mess = iter.next();
-                if(mess.getMessageID() == messageID) {
-                    // we got a response to this message now remove it
-                    iter.remove();
-                }
-            }
+            sendDataToClients(outgoing, true);
         }
     }
 
@@ -248,7 +254,6 @@ public class BluetoothServer {
             }
         }
     }
-
 
     /**
      * This thread runs while listening for incoming connections. It behaves
@@ -377,7 +382,6 @@ public class BluetoothServer {
             Log.i(TAG, "BEGIN mConnectedThread");
             byte[] buffer = new byte[BTUtils.MAX_SOCKET_READ];
             int bytes;
-
             // Keep listening to the InputStream while connected
             while (m_state == BTStates.STATE_CONNECTED) {
                 try {

@@ -158,7 +158,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 					byte[] outgoing = MessageBuilder.buildClientIdData(newClientID);
 					if (m_bluetoothServer != null) {
 						// send the client his ID
-						m_bluetoothServer.sendDataToClient(newClientID, outgoing);
+						m_bluetoothServer.sendDataToClient(newClientID, outgoing, true);
 					}
 					break;
 				}
@@ -191,7 +191,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 					// now notify all connected clients that the room counter has changed
 					byte[] outgoing = MessageBuilder.buildClientCountData(m_currentClients);
 					if (m_bluetoothServer != null) {
-						m_bluetoothServer.sendDataToClients(outgoing);
+						m_bluetoothServer.sendDataToClients(outgoing, true);
 					}
 					break;
 				}
@@ -215,7 +215,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 					//if there is no song playing there should be a follow up to this message that
 					//contains the streaming byte data to play
 					if (m_bluetoothServer != null) {
-						m_bluetoothServer.sendDataToClients(buffer);
+						m_bluetoothServer.sendDataToClients(buffer, true);
 					}
 					m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
 				}
@@ -232,30 +232,32 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 
 				break;
 			}
-			case BTMessages.SM_CLIENTDISPLAYNAME:
-				// a client is sending its name to us. parse it and notify of new connection
-				BasicStringWrapper newclient = MessageParser.parseClientDisplayName(buffer);
-				if(newclient != null) {
-					// we got a valid client
-					if(m_bluetoothServer != null) {
-						m_bluetoothServer.updateClientDisplayName(newclient.getClientID(), newclient.getStringData());
-						// send response to client
-						m_bluetoothServer.sendDataToClient(newclient.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_CLIENTDISPLAYNAME));
-						m_logText.append("User: " + newclient.getStringData() + " joined the room!\n");
-						// increase the number of connected clients
-						++m_currentClients;
-						// now lets tell the clients that a new client connected
-						m_bluetoothServer.sendDataToClients(MessageBuilder.buildClientCountData(m_currentClients));
-						updateClientCount();
-					}
-				}
-				break;
-			case BTMessages.SMR_RESPONSE:
-				// Handle the responses
-				if(m_bluetoothServer != null) {
-					m_bluetoothServer.handleResponseMessage(buffer[1], MessageParser.parseResponse(buffer));
-				}
-				break;
+			case BTMessages.SM_CLIENTDISPLAYNAME: {
+                // a client is sending its name to us. parse it and notify of new connection
+                BasicStringWrapper newclient = MessageParser.parseClientDisplayName(buffer);
+                if (newclient != null) {
+                    // we got a valid client
+                    if (m_bluetoothServer != null) {
+                        m_bluetoothServer.updateClientDisplayName(newclient.getClientID(), newclient.getStringData());
+                        // send response to client
+                        m_bluetoothServer.sendDataToClient(newclient.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_CLIENTDISPLAYNAME), false);
+                        m_logText.append("User: " + newclient.getStringData() + " joined the room!\n");
+                        // increase the number of connected clients
+                        ++m_currentClients;
+                        // now lets tell the clients that a new client connected
+                        m_bluetoothServer.sendDataToClients(MessageBuilder.buildClientCountData(m_currentClients), true);
+                        updateClientCount();
+                    }
+                }
+                break;
+            }
+			case BTMessages.SMR_RESPONSE: {
+                // Handle the responses
+                if (m_bluetoothServer != null) {
+                    m_bluetoothServer.handleResponseMessage(buffer[1], buffer);
+                }
+                break;
+            }
 			default: {
 				m_logText.append("Unsupported message type received!\n");
 				break;
