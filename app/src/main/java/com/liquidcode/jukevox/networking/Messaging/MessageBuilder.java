@@ -18,13 +18,19 @@ public class MessageBuilder {
      */
     public static byte[] buildSongData(byte clientID, String artist, String song) {
         // get the sizes for the data we're sending
-        // outgoing song data = 1byte header (SM_SONGINFO) + clientidsize + artist length + 1byte delim + song length + 1 byte delim
-        int outSize = BTMessages.SM_MESSAGEHEADERSIZE + BTMessages.SM_CLIENTIDSIZE + artist.length() + BTMessages.SM_DELIMITERSIZE + song.length() + BTMessages.SM_DELIMITERSIZE;
+        // outgoing song data = 1byte header (SM_SONGINFO) 1byte length + clientidsize + artist length + 1byte delim + song length + 1 byte delim
+        short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE
+                + artist.length() + BTMessages.SM_DELIMITERSIZE + song.length() + BTMessages.SM_DELIMITERSIZE);
         byte[] outgoing = new byte[outSize];
         // now build our byte data
         int currentIndex = 0;
         // song data header
         outgoing[currentIndex] = BTMessages.SM_SONGINFO;
+        ++currentIndex;
+        // length
+        outgoing[currentIndex] = (byte)outSize;
+        ++currentIndex;
+        outgoing[currentIndex] = (byte)(outSize >> 8);
         ++currentIndex;
         // client id
         outgoing[currentIndex] = clientID;
@@ -49,9 +55,12 @@ public class MessageBuilder {
      * @return byte[] representing the message
      */
     public static byte[] buildClientCountData(int clientCount) {
-        byte[] outgoing = new byte[2];
+        short outSize = BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE + 1;
+        byte[] outgoing = new byte[outSize];
         outgoing[0] = BTMessages.SM_CLIENTCOUNT;
-        outgoing[1] = (byte)clientCount;
+        outgoing[1] = (byte)outSize;
+        outgoing[2] = (byte)(outSize >> 8);
+        outgoing[3] = (byte)clientCount;
         return outgoing;
     }
 
@@ -62,8 +71,14 @@ public class MessageBuilder {
      */
     public static byte[] buildInfoData(String infoToSend) {
         int currentIndex = 0;
-        byte[] outgoing = new byte[BTMessages.SM_MESSAGEHEADERSIZE + infoToSend.length() + BTMessages.SM_DELIMITERSIZE];
-        outgoing[0] = BTMessages.SM_INFO;
+        short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + infoToSend.length() + BTMessages.SM_DELIMITERSIZE);
+        byte[] outgoing = new byte[outSize];
+        outgoing[currentIndex] = BTMessages.SM_INFO;
+        ++currentIndex;
+        // length
+        outgoing[currentIndex] = (byte)outSize;
+        ++currentIndex;
+        outgoing[currentIndex] = (byte)(outSize >> 8);
         ++currentIndex;
         System.arraycopy(infoToSend.getBytes(Charset.forName("UTF-8")), 0, outgoing, currentIndex, infoToSend.length());
         currentIndex += infoToSend.length();
@@ -78,8 +93,14 @@ public class MessageBuilder {
      */
     public static byte[] buildInfoData(byte clientID, String infoToSend) {
         int currentIndex = 0;
-        byte[] outgoing = new byte[BTMessages.SM_MESSAGEHEADERSIZE + BTMessages.SM_CLIENTIDSIZE + infoToSend.length() + BTMessages.SM_DELIMITERSIZE];
+        short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE + infoToSend.length() + BTMessages.SM_DELIMITERSIZE);
+        byte[] outgoing = new byte[outSize];
         outgoing[currentIndex] = BTMessages.SM_INFO;
+        ++currentIndex;
+        // length
+        outgoing[currentIndex] = (byte)outSize;
+        ++currentIndex;
+        outgoing[currentIndex] = (byte)(outSize >> 8);
         ++currentIndex;
         outgoing[currentIndex] = clientID;
         ++currentIndex;
@@ -95,16 +116,25 @@ public class MessageBuilder {
      * @return - byte array
      */
     public static byte[] buildClientIdData(byte newID) {
-        byte[] outgoing = new byte[2];
+        short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE + 1);
+        byte[] outgoing = new byte[outSize];
         outgoing[0] = BTMessages.SM_CLIENTID;
-        outgoing[1] = newID;
+        outgoing[1] = (byte)outSize;
+        outgoing[2] = (byte)(outSize >> 8);
+        outgoing[3] = newID;
         return outgoing;
     }
 
     public static byte[] buildClientNameData(byte clientID, String clientName) {
-        byte[] outgoing = new byte[BTMessages.SM_MESSAGEHEADERSIZE + BTMessages.SM_CLIENTIDSIZE + clientName.length() + BTMessages.SM_DELIMITERSIZE];
+        short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE + clientName.length() + BTMessages.SM_DELIMITERSIZE);
+        byte[] outgoing = new byte[outSize];
         int currentIndex = 0;
         outgoing[currentIndex] = BTMessages.SM_CLIENTDISPLAYNAME;
+        ++currentIndex;
+        // length
+        outgoing[currentIndex] = (byte)outSize;
+        ++currentIndex;
+        outgoing[currentIndex] = (byte)(outSize >> 8);
         ++currentIndex;
         // put the client id
         outgoing[currentIndex] = clientID;
@@ -123,11 +153,14 @@ public class MessageBuilder {
      * @return the byte array of the message
      */
     public static byte[] buildMessageResponse(byte respondToMessage) {
-        byte[] outgoing = new byte[3];
+        short outSize = BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + 1;
+        byte[] outgoing = new byte[outSize];
         // put the response header
         outgoing[0] = BTMessages.SMR_RESPONSE;
+        outgoing[1] = (byte)outSize;
+        outgoing[2] = (byte)(outSize >> 8);
         // put the message that we are responding to
-        outgoing[2] = respondToMessage;
+        outgoing[3] = respondToMessage;
         return outgoing;
     }
 
@@ -139,13 +172,17 @@ public class MessageBuilder {
      * @return the byte array of the message
      */
     public static byte[] buildMessageResponse(byte clientID, byte respondToMessage) {
-        byte[] outgoing = new byte[3];
+        short outSize = BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE + 1;
+        byte[] outgoing = new byte[outSize];
         // put the response header
         outgoing[0] = BTMessages.SMR_RESPONSE;
+        // length
+        outgoing[1] = (byte)outSize;
+        outgoing[2] = (byte)(outSize >> 8);
         // put the client ID
-        outgoing[1] = clientID;
+        outgoing[3] = clientID;
         // put the message that we are repsonding to
-        outgoing[2] = respondToMessage;
+        outgoing[4] = respondToMessage;
         return outgoing;
     }
 }

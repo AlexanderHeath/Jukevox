@@ -25,8 +25,14 @@ public interface BTMessages {
     // default time delay that a sent message waits before resending
     float DEFAULT_DELAY = 10.0f;
 
+    // size in bytes of a whole message header not including actual data
+    // HEADERSIZE (1) - LENGTH (2) - CLIENTID (1)
+    byte SM_MESSAGEHEADERSIZE = 4;
+    // starts right where the client ID begins
+    byte SM_MESSAGEHEADERSIZE_NOCLIENTID = 3;
     // size of our message headers sent through sockets
-    byte SM_MESSAGEHEADERSIZE = 1;
+    byte SM_MESSAGETYPESIZE = 1;
+    byte SM_LENGTH = 2; // two bytes for the length
     byte SM_DELIMITERSIZE = 1;
     byte SM_CLIENTIDSIZE = 1;
     // Message headers ( 1 - 50 reserved for requests )

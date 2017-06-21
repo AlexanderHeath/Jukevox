@@ -169,9 +169,9 @@ public class BluetoothServer {
         }
     }
 
-    public void handleResponseMessage(byte clientID, byte[] data) {
+    public void handleResponseMessage(byte clientID, byte message) {
         if(m_sentThread != null) {
-            m_sentThread.handleResponseMessage(clientID, MessageParser.parseResponse(data));
+            m_sentThread.handleResponseMessage(clientID, message);
         }
     }
 
@@ -381,15 +381,22 @@ public class BluetoothServer {
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
             byte[] buffer = new byte[BTUtils.MAX_SOCKET_READ];
-            int bytes;
+            byte[] processBuffer = null;
+            int bytesReceived;
             // Keep listening to the InputStream while connected
             while (m_state == BTStates.STATE_CONNECTED) {
                 try {
                     // Read from the InputStream
-                    bytes = m_inputStream.read(buffer);
-                    // Send the obtained bytes to the UI Activity
-                    m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, bytes, -1, buffer)
-                            .sendToTarget();
+                    bytesReceived = m_inputStream.read(buffer);
+                    if(bytesReceived > 0) {
+                        // create the new copy buffer that we are going to process messages from
+                        processBuffer = new byte[bytesReceived];
+                        System.arraycopy(buffer, 0, processBuffer, 0, bytesReceived);
+                        // Send the obtained bytes to the UI Activity
+                        m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, bytesReceived, -1, processBuffer)
+                                .sendToTarget();
+
+                    }
                 } catch (IOException e) {
                     Log.e(TAG, "disconnected", e);
                     disconnectClient(m_clientId);

@@ -1,7 +1,10 @@
 package com.liquidcode.jukevox.networking.Messaging;
 
+import com.liquidcode.jukevox.networking.MessageObjects.BasicByteWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
+
+import java.util.ArrayList;
 
 /**
  * MessageParser
@@ -18,11 +21,12 @@ public class MessageParser {
     public static SongInfoWrapper parseSongInfo(byte[] incoming) {
         SongInfoWrapper songinfo = null;
         if(incoming.length > 0) {
+            // skip message header and length = 3bytes
             // get the client id
-            byte clientID = incoming[1];
+            byte clientID = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];
             // process buffer
             // convert to string
-            String data = new String(incoming, 2, incoming.length-2);
+            String data = new String(incoming, BTMessages.SM_MESSAGEHEADERSIZE, incoming.length-BTMessages.SM_MESSAGEHEADERSIZE);
             // split on our delimiter
             String[] parts = data.split(String.valueOf(BTMessages.SM_DELIM));
             String artist = parts[0];
@@ -41,7 +45,7 @@ public class MessageParser {
         int clientCount = -1;
         if(incoming.length > 0) {
             // skip the first header byte and get the number
-            clientCount = incoming[1];
+            clientCount = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];
         }
         return clientCount;
     }
@@ -57,9 +61,9 @@ public class MessageParser {
         BasicStringWrapper infowrapper = null;
         if(incoming.length > 0) {
             // get clients id
-            clientID = incoming[1];
+            clientID = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];
             // get the info string
-            info = new String(incoming, 2, incoming.length-2);
+            info = new String(incoming, BTMessages.SM_MESSAGEHEADERSIZE, incoming.length-BTMessages.SM_MESSAGEHEADERSIZE);
             String[] parts = info.split(String.valueOf(BTMessages.SM_DELIM));
             // check to see if the last index is our message delimiter and remove it
             infowrapper = new BasicStringWrapper(parts[0], clientID);
@@ -75,7 +79,7 @@ public class MessageParser {
     public static byte parseCientIDData(byte[] incoming) {
         byte id = 0;
         if(incoming.length > 0) {
-            id = incoming[1];
+            id = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];
         }
         return id;
     }
@@ -86,9 +90,9 @@ public class MessageParser {
         byte clientID;
         if(incoming.length > 0) {
             // get clients id
-            clientID = incoming[1];
+            clientID = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];
             // get the info string
-            name = new String(incoming, 2, incoming.length-2);
+            name = new String(incoming, BTMessages.SM_MESSAGEHEADERSIZE, incoming.length-BTMessages.SM_MESSAGEHEADERSIZE);
             String[] parts = name.split(String.valueOf(BTMessages.SM_DELIM));
             // check to see if the last index is our message delimiter and remove it
             info = new BasicStringWrapper(parts[0], clientID);
@@ -101,12 +105,13 @@ public class MessageParser {
      * @param incoming
      * @return
      */
-    public static byte parseResponse(byte[] incoming) {
-        byte messageResponse = 0;
+    public static BasicByteWrapper parseResponse(byte[] incoming) {
+        BasicByteWrapper byteWrapper = null;
         if(incoming.length > 0) {
-            messageResponse = incoming[2];
+            // skip MESSAGETYPE (1) + LENGTH (2) = 3
+            byteWrapper = new BasicByteWrapper(incoming[3], incoming[4]);
         }
-        return messageResponse;
+        return byteWrapper;
     }
 
     /**
@@ -117,8 +122,49 @@ public class MessageParser {
     public static byte parseServerResponse(byte[] incoming) {
         byte messageResponse = 0;
         if(incoming.length > 0) {
-            messageResponse = incoming[1];
+            // skip MESSAGETYPE(1) + LENGTH (2)
+            messageResponse = incoming[3];
         }
         return messageResponse;
+    }
+
+    /**
+     * Takes the incoming buffer and splits the messages..Sometimes multiple messages come in at once
+     * they need to be broken apart so we can process them individually.
+     * @param buffer
+     * @return
+     */
+    public static ArrayList<byte[]> splitMessages(byte[] buffer) {
+        ArrayList<byte[]> messageList = new ArrayList<>();
+        int currentIndex = 0, startPosition = 0;
+        // get the message header
+        while(buffer[startPosition] != 0) {
+            // get the size of this whole message
+            short messSize;
+            // move the current pointer (lo byte) (header + 1byte)
+            ++currentIndex;
+            byte lo = buffer[startPosition + currentIndex];
+            ++currentIndex;
+            // get hi byte
+            byte hi = buffer[startPosition + currentIndex];
+            ++currentIndex;
+            messSize = (short)(((hi & 0xFF) << 8) | (lo & 0xff));
+            // we got the size
+            if(messSize <= 0) {
+                break;
+            }
+            // copy this message into the array list
+            byte[] newMessage = new byte[messSize];
+            System.arraycopy(buffer, startPosition, newMessage, 0, messSize);
+            messageList.add(newMessage);
+            startPosition += messSize; // skip this whole message
+            // if the nextStart position is outside the array bounds we need to break out
+            if(startPosition >= buffer.length) {
+                break; // stop the loop we reached the end of buffer
+            }
+            // reset current position
+            currentIndex = 0;
+        }
+        return messageList;
     }
 }

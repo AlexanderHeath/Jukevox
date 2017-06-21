@@ -87,7 +87,7 @@ public class SentMessageThread extends Thread {
                     SentMessage mess = iter.next();
                     if (mess != null && mess.checkSend(dt)) {
                         Log.d("SentThread", "Sending message");
-                        m_serverRef.sendDataToClient(entry.getKey(), mess.getMessageData(), false);
+                        //m_serverRef.sendDataToClient(entry.getKey(), mess.getMessageData(), false);
                     }
                 }
             }

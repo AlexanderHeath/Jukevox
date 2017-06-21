@@ -6,6 +6,7 @@ import java.util.Locale;
 import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
+import com.liquidcode.jukevox.networking.MessageObjects.BasicByteWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
@@ -200,67 +201,70 @@ public class ServerFragment extends android.support.v4.app.Fragment {
     };
 
 	private void processIncomingMessage(byte[] buffer) {
-
-        // buffer[0] is always the byte that tells us what message this is ALWAYS
-        switch(buffer[0]) {
-			case BTMessages.SM_SONGINFO: {
-				SongInfoWrapper songinfo = MessageParser.parseSongInfo(buffer);
-				if (songinfo != null) {
-					// update the queued list to reflect the new song we received from a client
-					m_queuedSongList.add(songinfo);
-					m_queueAdapter.notifyDataSetChanged();
-					m_queueListview.setAdapter(m_queueAdapter);
-					//send this buffer to all clients since the data was good
-					//this will build our queue of songs upon being received.
-					//if there is no song playing there should be a follow up to this message that
-					//contains the streaming byte data to play
-					if (m_bluetoothServer != null) {
-						m_bluetoothServer.sendDataToClients(buffer, true);
+		ArrayList<byte[]> messages = MessageParser.splitMessages(buffer);
+		for(byte[] message : messages) {
+			// message[0] is always the byte that tells us what message this is ALWAYS
+			switch (message[0]) {
+				case BTMessages.SM_SONGINFO: {
+					SongInfoWrapper songinfo = MessageParser.parseSongInfo(message);
+					if (songinfo != null) {
+						// update the queued list to reflect the new song we received from a client
+						m_queuedSongList.add(songinfo);
+						m_queueAdapter.notifyDataSetChanged();
+						m_queueListview.setAdapter(m_queueAdapter);
+						//send this buffer to all clients since the data was good
+						//this will build our queue of songs upon being received.
+						//if there is no song playing there should be a follow up to this message that
+						//contains the streaming byte data to play
+						if (m_bluetoothServer != null) {
+							m_bluetoothServer.sendDataToClients(message, true);
+						}
+						m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
 					}
-					m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
+					break;
 				}
-				break;
-			}
-			case BTMessages.SM_SONGDATA: {
-				// this will be where we take our streamed data and send it to the media service's  AudioTrack
-				break;
-			}
-			case BTMessages.SM_INFO: {
-				BasicStringWrapper info = MessageParser.parseInfoData(buffer);
-				m_logText.append("Info: " + info.getStringData() + "\n");
-				// send the response
+				case BTMessages.SM_SONGDATA: {
+					// this will be where we take our streamed data and send it to the media service's  AudioTrack
+					break;
+				}
+				case BTMessages.SM_INFO: {
+					BasicStringWrapper info = MessageParser.parseInfoData(message);
+					m_logText.append("Info: " + info.getStringData() + "\n");
+					// send the response
 
-				break;
-			}
-			case BTMessages.SM_CLIENTDISPLAYNAME: {
-                // a client is sending its name to us. parse it and notify of new connection
-                BasicStringWrapper newclient = MessageParser.parseClientDisplayName(buffer);
-                if (newclient != null) {
-                    // we got a valid client
-                    if (m_bluetoothServer != null) {
-                        m_bluetoothServer.updateClientDisplayName(newclient.getClientID(), newclient.getStringData());
-                        // send response to client
-                        m_bluetoothServer.sendDataToClient(newclient.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_CLIENTDISPLAYNAME), false);
-                        m_logText.append("User: " + newclient.getStringData() + " joined the room!\n");
-                        // increase the number of connected clients
-                        ++m_currentClients;
-                        // now lets tell the clients that a new client connected
-                        m_bluetoothServer.sendDataToClients(MessageBuilder.buildClientCountData(m_currentClients), true);
-                        updateClientCount();
-                    }
-                }
-                break;
-            }
-			case BTMessages.SMR_RESPONSE: {
-                // Handle the responses
-                if (m_bluetoothServer != null) {
-                    m_bluetoothServer.handleResponseMessage(buffer[1], buffer);
-                }
-                break;
-            }
-			default: {
-				m_logText.append("Unsupported message type received!\n");
-				break;
+					break;
+				}
+				case BTMessages.SM_CLIENTDISPLAYNAME: {
+					// a client is sending its name to us. parse it and notify of new connection
+					BasicStringWrapper newclient = MessageParser.parseClientDisplayName(message);
+					if (newclient != null) {
+						// we got a valid client
+						if (m_bluetoothServer != null) {
+							m_bluetoothServer.updateClientDisplayName(newclient.getClientID(), newclient.getStringData());
+							// send response to client
+							m_bluetoothServer.sendDataToClient(newclient.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_CLIENTDISPLAYNAME), false);
+							m_logText.append("User: " + newclient.getStringData() + " joined the room!\n");
+							// increase the number of connected clients
+							++m_currentClients;
+							// now lets tell the clients that a new client connected
+							m_bluetoothServer.sendDataToClients(MessageBuilder.buildClientCountData(m_currentClients), true);
+							updateClientCount();
+						}
+					}
+					break;
+				}
+				case BTMessages.SMR_RESPONSE: {
+					// Handle the responses
+					BasicByteWrapper response = MessageParser.parseResponse(message);
+					if (m_bluetoothServer != null) {
+						m_bluetoothServer.handleResponseMessage(response.getClientID(), response.getByteData());
+					}
+					break;
+				}
+				default: {
+					m_logText.append("Unsupported message type received!\n");
+					break;
+				}
 			}
 		}
 	}
