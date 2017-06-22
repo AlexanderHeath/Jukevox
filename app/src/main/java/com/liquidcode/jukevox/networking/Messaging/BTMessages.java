@@ -23,7 +23,7 @@ public interface BTMessages {
     String TOAST = "toast";
 
     // default time delay that a sent message waits before resending
-    float DEFAULT_DELAY = 10.0f;
+    float DEFAULT_DELAY = 5.0f;
 
     // size in bytes of a whole message header not including actual data
     // HEADERSIZE (1) - LENGTH (2) - CLIENTID (1)

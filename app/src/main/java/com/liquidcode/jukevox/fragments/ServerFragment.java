@@ -217,6 +217,9 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 						//if there is no song playing there should be a follow up to this message that
 						//contains the streaming byte data to play
 						if (m_bluetoothServer != null) {
+							// send the songinfo response so they stop sending this message
+							m_bluetoothServer.sendDataToClient(songinfo.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_SONGINFO), false);
+							// send the new song to the clients
 							m_bluetoothServer.sendDataToClients(message, true);
 						}
 						m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");

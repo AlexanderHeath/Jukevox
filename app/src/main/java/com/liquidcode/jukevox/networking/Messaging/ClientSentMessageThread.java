@@ -69,7 +69,7 @@ public class ClientSentMessageThread extends Thread {
             while (iter.hasNext()) {
                 SentMessage mess = iter.next();
                 if (mess != null && mess.checkSend(dt)) {
-                    //m_clientRef.sendDataToServer(mess.getMessageData(), false);
+                    m_clientRef.sendDataToServer(mess.getMessageData(), false);
                 }
             }
         }
