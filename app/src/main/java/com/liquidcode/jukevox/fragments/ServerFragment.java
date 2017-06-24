@@ -83,6 +83,16 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		return root;
 	}
 
+	public void initializeRoom() {
+		m_currentClients = 0;
+		if(m_queuedSongList != null) {
+			m_queuedSongList.clear();
+		}
+		if(m_queueAdapter != null) {
+			m_queueAdapter.notifyDataSetChanged();
+		}
+	}
+
 	private void initWidgets(ViewGroup root) {
 		// if the arraylist of songInfo is null create it
 		if(m_queuedSongList == null) {

@@ -431,6 +431,7 @@ public class JukevoxMain extends AppCompatActivity
         Bundle args = new Bundle();
         args.putString("roomName", m_roomName);
         m_serverFragment.setArguments(args);
+        m_serverFragment.initializeRoom();
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ft.setCustomAnimations(R.anim.fragment_enter, R.anim.fragment_exit, R.anim.fragment_enter, R.anim.fragment_exit)
                 .replace(R.id.hostingContainer, m_serverFragment, SERVERFRAG_TAG)

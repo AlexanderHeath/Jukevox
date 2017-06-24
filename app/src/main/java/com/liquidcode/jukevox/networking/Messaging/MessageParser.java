@@ -91,7 +91,7 @@ public class MessageParser {
         if(incoming.length > 0) {
             // get clients id
             clientID = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];
-            // get the info string
+            // get the client display name
             name = new String(incoming, BTMessages.SM_MESSAGEHEADERSIZE, incoming.length-BTMessages.SM_MESSAGEHEADERSIZE);
             String[] parts = name.split(String.valueOf(BTMessages.SM_DELIM));
             // check to see if the last index is our message delimiter and remove it
