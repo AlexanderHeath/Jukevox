@@ -330,10 +330,10 @@ public class JukevoxMain extends AppCompatActivity
     }
 
     @Override
-    public void onSongSelected(String artist, String songName) {
+    public void onSongSelected(String artist, Song songData) {
         if(m_clientJoinedFragment != null && m_clientJoinedFragment.isConnectedToRoom()) {
             // send the song info to the ClientJoinedFragment
-            m_clientJoinedFragment.sendSongInfo(artist, songName);
+            m_clientJoinedFragment.beginSongStreaming(artist, songData);
         }
     }
 

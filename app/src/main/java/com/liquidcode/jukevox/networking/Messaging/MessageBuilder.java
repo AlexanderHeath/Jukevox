@@ -16,7 +16,7 @@ public class MessageBuilder {
      * @param song - the song name
      * @return byte[] of our data
      */
-    public static byte[] buildSongData(byte clientID, String artist, String song) {
+    public static byte[] buildSongInfo(byte clientID, String artist, String song) {
         // get the sizes for the data we're sending
         // outgoing song data = 1byte header (SM_SONGINFO) 1byte length + clientidsize + artist length + 1byte delim + song length + 1 byte delim
         short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE

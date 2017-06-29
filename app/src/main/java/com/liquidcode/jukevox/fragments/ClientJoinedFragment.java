@@ -16,6 +16,7 @@ import android.widget.Toast;
 import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
+import com.liquidcode.jukevox.musicobjects.Song;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
 import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
@@ -51,6 +52,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     // our display name
     private String m_displayName;
 
+    // Variables that keep track of the clients current song its streaming to the server
+    private int m_currentPosition; // how much data we've sent so far
+    private int m_maxSongLength; // how much data this song is
+    private Song m_currentSong;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -64,6 +70,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
 
     public void initializeClient(String displayName, BluetoothClient btc) {
         m_displayName = displayName;
+        m_currentPosition = 0;
+        m_maxSongLength = 0;
+        m_currentSong = null;
         setBluetoothClient(btc);
     }
 
@@ -114,7 +123,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     }
 
     public void sendSongInfo(String artist, String song) {
-        byte[] outgoing = MessageBuilder.buildSongData(m_id, artist, song);
+        byte[] outgoing = MessageBuilder.buildSongInfo(m_id, artist, song);
         m_bluetoothClient.sendDataToServer(outgoing, true);
     }
 
@@ -239,6 +248,15 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 }
             }
         }
+    }
+
+    public void beginSongStreaming(String artist, Song songData) {
+        // send the song info over
+         if(m_bluetoothClient != null) {
+             sendSongInfo(artist, songData.title);
+             // start sending the bytes until we reached the max for the current song
+             // new thread?
+         }
     }
 
     private void sendResponse(byte messID) {

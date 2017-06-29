@@ -75,7 +75,7 @@ public class SongFragment extends Fragment {
 //                    mediaPlayerIntent.putExtra("current_song_index", i);
 //                    mediaPlayerIntent.putExtra("album_uri", m_albumArtUri.toString());
 //                    startActivity(mediaPlayerIntent);
-                    mSongSelectedListener.onSongSelected(m_artistName, m_songList.get(i).title);
+                    mSongSelectedListener.onSongSelected(m_artistName, m_songList.get(i));
                 }
             });
         }
@@ -136,7 +136,7 @@ public class SongFragment extends Fragment {
 
     // Container Activity must implement this interface
     public interface OnSongSelectedListener {
-        void onSongSelected(String artist, String songName);
+        void onSongSelected(String artist, Song songData);
     }
 
 }
