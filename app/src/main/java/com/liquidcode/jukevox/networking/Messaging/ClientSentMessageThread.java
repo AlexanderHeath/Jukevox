@@ -1,5 +1,7 @@
 package com.liquidcode.jukevox.networking.Messaging;
 
+import android.util.Log;
+
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
 import com.liquidcode.jukevox.networking.Server.BluetoothServer;
 
@@ -39,12 +41,16 @@ public class ClientSentMessageThread extends Thread {
                 SentMessage mess = iter.next();
                 if (mess.getMessageID() == messageID) {
                     // we got a response to this message now remove it
+                    String messageIDStr;
+                    messageIDStr = String.format("(%d)", mess.getMessageID());
+                    Log.i("CST", "Removing " + messageIDStr);
                     iter.remove();
                     break;
                 }
             }
         }
     }
+
     public void run() {
         m_running = true;
         long lastTime = System.currentTimeMillis();
@@ -69,7 +75,10 @@ public class ClientSentMessageThread extends Thread {
             while (iter.hasNext()) {
                 SentMessage mess = iter.next();
                 if (mess != null && mess.checkSend(dt)) {
-                    //m_clientRef.sendDataToServer(mess.getMessageData(), false);
+                    String messageID;
+                    messageID = String.format("(%d)", mess.getMessageID());
+                    Log.i("CST", "Sending message " + messageID);
+                    m_clientRef.sendDataToServer(mess.getMessageData(), false);
                 }
             }
         }

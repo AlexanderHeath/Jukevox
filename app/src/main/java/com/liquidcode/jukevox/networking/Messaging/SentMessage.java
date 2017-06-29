@@ -34,5 +34,4 @@ public class SentMessage {
 
     public byte getMessageID() { return m_messageType; }
     public byte[] getMessageData() { return m_messageData; }
-    public float getSendDelay() { return m_delay; }
 }

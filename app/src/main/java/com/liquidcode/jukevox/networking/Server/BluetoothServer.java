@@ -223,6 +223,7 @@ public class BluetoothServer {
         // stop this users ConnectedThread
         if(clientThread != null) {
             clientThread.cancel();
+            clientThread = null;
             // now remove from our connected client list
             m_clientConnections.remove(disconnectedClient);
         }
@@ -395,7 +396,6 @@ public class BluetoothServer {
                         // Send the obtained bytes to the UI Activity
                         m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, bytesReceived, -1, processBuffer)
                                 .sendToTarget();
-
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "disconnected", e);

@@ -133,6 +133,9 @@ public class BluetoothClient {
      * Indicate that the connection was lost and notify the UI Activity.
      */
     private void connectionLost(String serverName) {
+
+        // shut off the ClientSent
+
         // Send a failure message back to the Activity
         Message msg = m_uiHandler.obtainMessage(BTMessages.MESSAGE_USER_DISCONNECT);
         Bundle bundle = new Bundle();
@@ -296,16 +299,21 @@ public class BluetoothClient {
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
             byte[] buffer = new byte[BTUtils.MAX_SOCKET_READ];
-            int bytes;
-
+            byte[] processBuffer = null;
+            int bytesReceived;
             // Keep listening to the InputStream while connected
             while (m_state == BTStates.STATE_CONNECTED) {
                 try {
                     // Read from the InputStream
-                    bytes = m_inputStream.read(buffer);
-                    // Send the obtained bytes to the UI Activity
-                    m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, bytes, -1, buffer)
-                            .sendToTarget();
+                    bytesReceived = m_inputStream.read(buffer);
+                    if(bytesReceived > 0) {
+                        // create the new copy buffer that we are going to process messages from
+                        processBuffer = new byte[bytesReceived];
+                        System.arraycopy(buffer, 0, processBuffer, 0, bytesReceived);
+                        // Send the obtained bytes to the UI Activity
+                        m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, bytesReceived, -1, processBuffer)
+                                .sendToTarget();
+                    }
                 } catch (IOException e) {
                     Log.e(TAG, "disconnected", e);
                     connectionLost(m_deviceName);

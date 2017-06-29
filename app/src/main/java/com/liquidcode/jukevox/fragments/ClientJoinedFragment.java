@@ -170,6 +170,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                         m_logText.append("Disconnected from server: " + serverName + "\n");
                         // close this fragment since we arent connected anymore
                         ((JukevoxMain)getActivity()).closeRoomFragments();
+                        if(m_bluetoothClient != null) {
+                            m_bluetoothClient.disconnectFromServer();
+                        }
                     }
                     m_isConnectedToRoom = false;
                     break;
@@ -179,56 +182,61 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
 
 
     private void processIncomingMessage(byte[] buffer) {
-
-        // check the first byte for message type
-        switch(buffer[0]) {
-            case BTMessages.SM_CLIENTCOUNT: {
-                // increase the index so we are reading our actual message
-                int currentClientCount = MessageParser.parseClientCount(buffer);
-                updateClientCount(currentClientCount);
-                // send our repsonse
-                sendResponse(BTMessages.SM_CLIENTCOUNT);
-                break;
-            }
-            case BTMessages.SM_SONGINFO: {
-                SongInfoWrapper songinfo = MessageParser.parseSongInfo(buffer);
-                if(songinfo != null) {
-                    m_queuedSongList.add(songinfo);
-                    m_queueAdapter.notifyDataSetChanged();
-                    m_queueListview.setAdapter(m_queueAdapter);
-                    sendResponse(BTMessages.SM_SONGINFO);
+        ArrayList<byte[]> messages = MessageParser.splitMessages(buffer);
+        for(byte[] message : messages) {
+            // check the first byte for message type
+            switch (message[0]) {
+                case BTMessages.SM_CLIENTCOUNT: {
+                    // increase the index so we are reading our actual message
+                    int currentClientCount = MessageParser.parseClientCount(message);
+                    updateClientCount(currentClientCount);
+                    // send our repsonse
+                    sendResponse(BTMessages.SM_CLIENTCOUNT);
+                    break;
                 }
-                m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
-                break;
-            }
-            case BTMessages.SM_INFO: {
-                BasicStringWrapper info = MessageParser.parseInfoData(buffer);
-                m_logText.append("Info: " + info.getStringData() + "\n");
-                sendResponse(BTMessages.SM_INFO);
-                break;
-            }
-            case BTMessages.SM_CLIENTID: {
-                m_id = MessageParser.parseCientIDData(buffer);
-                if(m_bluetoothClient != null) {
-                    // send our response
-                    sendResponse(BTMessages.SM_CLIENTID);
-                    // we got our client id and responded now tell the server our display name
-                    m_bluetoothClient.sendDataToServer(MessageBuilder.buildClientNameData(m_id, m_displayName), true);
+                case BTMessages.SM_SONGINFO: {
+                    SongInfoWrapper songinfo = MessageParser.parseSongInfo(message);
+                    if (songinfo != null) {
+                        m_queuedSongList.add(songinfo);
+                        m_queueAdapter.notifyDataSetChanged();
+                        m_queueListview.setAdapter(m_queueAdapter);
+                        sendResponse(BTMessages.SM_SONGINFO);
+                    }
+                    m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
+                    break;
                 }
-                break;
-            }
-            case BTMessages.SMR_RESPONSE: {
-                // Handle the responses
-                if (m_bluetoothClient != null) {
-                    m_bluetoothClient.handleResponseMessage(MessageParser.parseServerResponse(buffer));
+                case BTMessages.SM_INFO: {
+                    BasicStringWrapper info = MessageParser.parseInfoData(message);
+                    m_logText.append("Info: " + info.getStringData() + "\n");
+                    sendResponse(BTMessages.SM_INFO);
+                    break;
                 }
-                break;
-            }
-            default: {
-                // dont append this right now
-                //m_logText.append("Unsupported message type received!\n");
-                Log.e(TAG, "Unsupported message type received!\n");
-                break;
+                case BTMessages.SM_CLIENTID: {
+                    m_id = MessageParser.parseCientIDData(message);
+                    if (m_bluetoothClient != null) {
+                        // send our response
+                        sendResponse(BTMessages.SM_CLIENTID);
+                        // we got our client id and responded now tell the server our display name
+                        m_bluetoothClient.sendDataToServer(MessageBuilder.buildClientNameData(m_id, m_displayName), true);
+                    }
+                    break;
+                }
+                case BTMessages.SMR_RESPONSE: {
+                    // Handle the responses
+                    if (m_bluetoothClient != null) {
+                        String responseID = String.format("Response ID: (%d)", MessageParser.parseServerResponse(message));
+                        byte responsebyte = MessageParser.parseServerResponse(message);
+                        Log.i("CST", responseID);
+                        m_bluetoothClient.handleResponseMessage(responsebyte);
+                    }
+                    break;
+                }
+                default: {
+                    // dont append this right now
+                    //m_logText.append("Unsupported message type received!\n");
+                    Log.e(TAG, "Unsupported message type received!\n");
+                    break;
+                }
             }
         }
     }
