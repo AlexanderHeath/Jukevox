@@ -49,6 +49,31 @@ public class MessageBuilder {
         return outgoing;
     }
 
+    public static byte[] buildSongData(byte clientID, byte[] songData) {
+        // get the sizes for the data we're sending
+        // outgoing song data = 1byte header (SM_SONGINFO) 1byte length + clientidsize + artist length + 1byte delim + song length + 1 byte delim
+        short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE
+                + songData.length);
+        byte[] outgoing = new byte[outSize];
+        // now build our byte data
+        int currentIndex = 0;
+        // song data header
+        outgoing[currentIndex] = BTMessages.SM_SONGDATA;
+        ++currentIndex;
+        // length
+        outgoing[currentIndex] = (byte)outSize;
+        ++currentIndex;
+        outgoing[currentIndex] = (byte)(outSize >> 8);
+        ++currentIndex;
+        // client id
+        outgoing[currentIndex] = clientID;
+        ++currentIndex;
+        // copy the song data into the outgoing array
+        System.arraycopy(songData, 0, outgoing, currentIndex, songData.length);
+        currentIndex += songData.length;
+        return outgoing;
+    }
+
     /**
      * Builds the client count message that gets sent to clients
      * @param clientCount - the current client count

@@ -6,8 +6,10 @@ import java.util.Locale;
 import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
+import com.liquidcode.jukevox.musicobjects.ByteDataSource;
 import com.liquidcode.jukevox.networking.MessageObjects.BasicByteWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
+import com.liquidcode.jukevox.networking.MessageObjects.SongDataWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
 import com.liquidcode.jukevox.networking.Messaging.MessageParser;
@@ -15,6 +17,9 @@ import com.liquidcode.jukevox.networking.Server.BluetoothServer;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.util.BTUtils;
 
+import android.bluetooth.BluetoothA2dp;
+import android.bluetooth.BluetoothProfile;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothSocket;
@@ -37,7 +42,9 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 	private static final int REQUEST_ENABLE = 0x1;
 	private static final int REQUEST_ENABLED_REJECTED = 0x00;
 	private String m_roomName = null;
-	private BluetoothAdapter mAdapter = null;
+	private BluetoothAdapter m_adapter = null;
+	private BluetoothA2dp m_a2dpProfile = null;
+	private BluetoothProfile.ServiceListener m_btServiceListener = null;
 	private TextView m_logText = null;
 	private TextView m_clientCountText = null;
 	private ArrayList<BluetoothSocket> m_connectedDevices = null;
@@ -50,6 +57,7 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 	private ListView m_queueListview = null;
 	// list of queued song that we get from the server
 	private ArrayList<SongInfoWrapper> m_queuedSongList = null;
+	private MediaPlayer m_mediaPlayer;
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -64,8 +72,8 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		}
 		if(m_roomName != null)
 		{
-			mAdapter = BluetoothAdapter.getDefaultAdapter();
-			if(mAdapter != null) {
+			m_adapter = BluetoothAdapter.getDefaultAdapter();
+			if(m_adapter != null) {
 				// request for the bluetooth to be enabled
 				m_logText.append("-Requesting Bluetooth access...\n");
 				RequestBluetoothPermission();
@@ -90,6 +98,15 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		}
 		if(m_queueAdapter != null) {
 			m_queueAdapter.notifyDataSetChanged();
+		}
+		if(m_mediaPlayer == null) {
+			m_mediaPlayer = new MediaPlayer();
+			m_mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+				@Override
+				public void onPrepared(MediaPlayer mediaPlayer) {
+					m_mediaPlayer.start();
+				}
+			});
 		}
 	}
 
@@ -128,9 +145,9 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 	{
 		if(requestCode == REQUEST_ENABLE && resultCode != REQUEST_ENABLED_REJECTED)
 		{
-            mAdapter.enable();
+            m_adapter.enable();
 			// set the bluetooth device name to the room name chosen
-			mAdapter.setName(m_roomName);
+			m_adapter.setName(m_roomName);
             m_logText.append("-Room Name: " + m_roomName + "\n");
 			m_logText.append("-Server is now discoverable!\n");
 			m_logText.append("-Listening on RFCOMM Channel.\n");
@@ -139,12 +156,43 @@ public class ServerFragment extends android.support.v4.app.Fragment {
             if(m_bluetoothServer == null) {
                 m_bluetoothServer = new BluetoothServer(mHandler);
             }
+            // try and get the A2DP profile
+			initBluetoothServiceListener();
             // start the listener thread
             m_bluetoothServer.startServerListen();
 		}
 		else
 		{
 			((JukevoxMain)getActivity()).removeCurrentFragment();
+		}
+	}
+
+	private void initBluetoothServiceListener() {
+		m_btServiceListener = new BluetoothProfile.ServiceListener() {
+			@Override
+			public void onServiceConnected(int i, BluetoothProfile bluetoothProfile) {
+				if(bluetoothProfile != null && i == BluetoothProfile.A2DP) {
+					// we have a valid profile
+					m_a2dpProfile = (BluetoothA2dp)bluetoothProfile;
+				}
+			}
+
+			@Override
+			public void onServiceDisconnected(int i) {
+
+			}
+		};
+
+		// set up the bluetooth a2dp profile
+		// TODO: change this to only be done when bluetooth connection is selected
+		if(m_adapter != null) {
+			boolean result = m_adapter.getProfileProxy(getActivity(), m_btServiceListener, BluetoothProfile.A2DP);
+			if(result) {
+				Log.d(TAG, "Acquired A2DP profile");
+			}
+			else {
+				Log.d(TAG, "Failed to get A2DP profile");
+			}
 		}
 	}
 	
@@ -237,7 +285,11 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 					break;
 				}
 				case BTMessages.SM_SONGDATA: {
-					// this will be where we take our streamed data and send it to the media service's  AudioTrack
+					SongDataWrapper songData = MessageParser.parseSongData(message);
+					if(songData != null && m_bluetoothServer != null) {
+						m_bluetoothServer.sendDataToClient(songData.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_SONGDATA), false);
+					}
+
 					break;
 				}
 				case BTMessages.SM_INFO: {
@@ -292,6 +344,10 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		super.onDestroy();
 		if(m_bluetoothServer != null) {
 			m_bluetoothServer.endAllConnections();
+		}
+		if(m_mediaPlayer != null && m_mediaPlayer.isPlaying()) {
+			m_mediaPlayer.stop();
+			m_mediaPlayer.release();
 		}
 	}
 }

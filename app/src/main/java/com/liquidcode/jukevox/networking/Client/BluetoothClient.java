@@ -57,6 +57,9 @@ public class BluetoothClient {
         m_state = BTStates.STATE_NONE;
     }
 
+    public BluetoothAdapter getBTAdapter() { return m_btAdapter; }
+    public BluetoothDevice getServerDevice() { return m_serverDevice; }
+
     // our interface to connect to a device
     public synchronized boolean connectToServer(BluetoothDevice serverDevice, boolean secure) {
         boolean status = true;

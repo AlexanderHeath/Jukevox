@@ -1,5 +1,9 @@
 package com.liquidcode.jukevox;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -72,14 +76,14 @@ public class LibraryLoader {
 			String album = cur.getString(albumColumn);
 			long duration = cur.getLong(durationColumn);
 			long artID = cur.getLong(albumArtColumn);
-			byte[] data = cur.getBlob(dataColumn);
+			String data = cur.getString(dataColumn);
 
 			// parse for the album art
 			Uri sArtworkUri = Uri
 					.parse("content://media/external/audio/albumart");
 			Uri albumArtUri = ContentUris.withAppendedId(sArtworkUri, artID);
 
-			AddQueryToLibrary(artist, album, title, duration, _id, albumArtUri, data);
+			AddQueryToLibrary(artist, album, title, duration, _id, albumArtUri, null);
 
 		} while (cur.moveToNext());
 
@@ -96,6 +100,19 @@ public class LibraryLoader {
 		return mResultCode; // success :D
 	}
 
+	public byte[] toByteArray(InputStream in) throws IOException {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		int read = 0;
+		byte[] buffer = new byte[1024];
+		while (read != -1) {
+			read = in.read(buffer);
+			if (read != -1)
+				out.write(buffer,0,read);
+		}
+		out.close();
+		return out.toByteArray();
+	}
+
 	//	While we are looping through the phones storage finding music.  We need to start adding them to our internal
 	//	library.
 	private void AddQueryToLibrary(String artist, String album, String title, long duration, long id, Uri albumURI, byte[] data) {
@@ -109,6 +126,7 @@ public class LibraryLoader {
 			newAlbum.albumArt = albumURI;
 			// dont have this song create it
 			Song newSong = new Song(title, id, duration);
+
 			newSong.data = data;
 			// add the song to album
 			newAlbum.songList.add(newSong);

@@ -2,6 +2,7 @@ package com.liquidcode.jukevox.networking.Messaging;
 
 import com.liquidcode.jukevox.networking.MessageObjects.BasicByteWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
+import com.liquidcode.jukevox.networking.MessageObjects.SongDataWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 
 import java.util.ArrayList;
@@ -34,6 +35,18 @@ public class MessageParser {
             songinfo = new SongInfoWrapper(artist, songName, clientID);
         }
         return songinfo;
+    }
+
+    public static SongDataWrapper parseSongData(byte[] incoming) {
+        SongDataWrapper songData = null;
+        if(incoming.length > 0) {
+            byte clientID = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];
+            // get the new byte array of song data
+            byte[] songbuffer = new byte[incoming.length-BTMessages.SM_MESSAGEHEADERSIZE];
+            System.arraycopy(incoming, BTMessages.SM_MESSAGEHEADERSIZE, songbuffer, 0, incoming.length-BTMessages.SM_MESSAGEHEADERSIZE);
+            songData = new SongDataWrapper(clientID, songbuffer);
+        }
+        return songData;
     }
 
     /**

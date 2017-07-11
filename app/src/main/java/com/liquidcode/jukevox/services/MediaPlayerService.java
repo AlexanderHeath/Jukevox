@@ -45,9 +45,7 @@ public class MediaPlayerService extends Service {
         }
         return m_mediaBinder;
     }
-
-
-
+    
     @Override
     public void onCreate() {
         super.onCreate();

@@ -1,9 +1,24 @@
 package com.liquidcode.jukevox.fragments;
 
+import android.bluetooth.BluetoothA2dp;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.IBluetoothA2dp;
+import android.content.BroadcastReceiver;
+import android.content.ContentUris;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -23,8 +38,11 @@ import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
 import com.liquidcode.jukevox.networking.Messaging.MessageParser;
+import com.liquidcode.jukevox.networking.StreamingThread;
 import com.liquidcode.jukevox.util.BTUtils;
 
+import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -51,11 +69,19 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private byte m_id;
     // our display name
     private String m_displayName;
+    // the clients Steaming music thread
+    private StreamingThread m_streamThread;
+    private BluetoothA2dp m_a2dpProfile = null;
+    private BluetoothProfile.ServiceListener m_btServiceListener = null;
+    private MediaPlayer m_mediaPlayer = null;
 
     // Variables that keep track of the clients current song its streaming to the server
+    private final int SONG_CHUNK_SIZE = 800; // 800 bytes at a time?
     private int m_currentPosition; // how much data we've sent so far
     private int m_maxSongLength; // how much data this song is
     private Song m_currentSong;
+    private boolean m_songStreamComplete;
+    private AudioManager mAudioManager;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -63,8 +89,16 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         ViewGroup root = (ViewGroup) inflater.inflate(
                 R.layout.room_layout, container, false);
 
+        if(mAudioManager == null) {
+            mAudioManager = (AudioManager)getActivity().getSystemService(Context.AUDIO_SERVICE);
+        }
         // init the text widgets so we can be updated by the server
         initWidgets(root);
+        getActivity().registerReceiver(mReceiver, new IntentFilter(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED));
+        getActivity().registerReceiver(mReceiver, new IntentFilter(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED));
+        // init the bluetooth service a2dp
+        //initBluetoothServiceListener();
+        connectUsingBluetoothA2dp(getActivity(), m_bluetoothClient.getServerDevice());
         return root;
     }
 
@@ -74,6 +108,10 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         m_maxSongLength = 0;
         m_currentSong = null;
         setBluetoothClient(btc);
+        if(m_mediaPlayer == null) {
+            m_mediaPlayer = new MediaPlayer();
+            m_mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        }
     }
 
     /**
@@ -137,6 +175,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     @Override
     public void onStop() {
         super.onStop();
+        stopSong();
+        getActivity().unregisterReceiver(mReceiver);
+        if(m_bluetoothClient != null) {
+            m_bluetoothClient.getBTAdapter().closeProfileProxy(BluetoothProfile.A2DP, m_a2dpProfile);
+        }
     }
 
     @Override
@@ -147,6 +190,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         // disconnect from the server here since we are actively connected
         if(m_bluetoothClient != null) {
             m_bluetoothClient.disconnectFromServer();
+        }
+        if(m_streamThread != null) {
+            m_streamThread.cancel();
         }
     }
 
@@ -233,9 +279,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 case BTMessages.SMR_RESPONSE: {
                     // Handle the responses
                     if (m_bluetoothClient != null) {
-                        String responseID = String.format("Response ID: (%d)", MessageParser.parseServerResponse(message));
                         byte responsebyte = MessageParser.parseServerResponse(message);
-                        Log.i("CST", responseID);
+                        if(responsebyte == BTMessages.SM_SONGDATA) {
+                            // try to stream next chunk
+                            streamNextChunk();
+                        }
                         m_bluetoothClient.handleResponseMessage(responsebyte);
                     }
                     break;
@@ -250,19 +298,205 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         }
     }
 
+    private void initBluetoothServiceListener() {
+        m_btServiceListener = new BluetoothProfile.ServiceListener() {
+            @Override
+            public void onServiceConnected(int i, BluetoothProfile bluetoothProfile) {
+                if (bluetoothProfile != null && i == BluetoothProfile.A2DP) {
+                    boolean a2dpOn = mAudioManager.isBluetoothA2dpOn();
+
+                    // we have a valid profile
+                    m_a2dpProfile = (BluetoothA2dp) bluetoothProfile;
+                }
+            }
+
+            @Override
+            public void onServiceDisconnected(int i) {
+
+            }
+        };
+
+        // set up the bluetooth a2dp profile
+        // TODO: change this to only be done when bluetooth connection is selected
+        if(m_bluetoothClient.getBTAdapter() != null) {
+            boolean result = m_bluetoothClient.getBTAdapter().getProfileProxy(getActivity(), m_btServiceListener, BluetoothProfile.A2DP);
+            if(result) {
+                Log.d(TAG, "Acquired A2DP profile");
+            }
+            else {
+                Log.d(TAG, "Failed to get A2DP profile");
+            }
+        }
+    }
+
     public void beginSongStreaming(String artist, Song songData) {
         // send the song info over
-         if(m_bluetoothClient != null) {
-             sendSongInfo(artist, songData.title);
-             // start sending the bytes until we reached the max for the current song
-             // new thread?
-         }
+        if(m_bluetoothClient != null) {
+
+            sendSongInfo(artist, songData.title);
+            // start sending the bytes until we reached the max for the current song
+//             if(m_streamThread == null) {
+//                 m_streamThread = new StreamingThread();
+//             }
+//             m_streamThread.start();
+            m_currentPosition = 0;
+            m_currentSong = songData;
+            //m_maxSongLength = m_currentSong.data.length;
+            m_songStreamComplete = false;
+            playSong(false);
+            //streamNextChunk();
+        }
+    }
+
+    public boolean playSong(boolean isPaused) {
+        long id = m_currentSong.id;
+        // set up the file to be played
+        Uri fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
+        try {
+            // create the audio attributes
+            m_mediaPlayer.setDataSource(getActivity(), fileUri);
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+            return false;
+        } catch (SecurityException e) {
+            e.printStackTrace();
+            return false;
+        } catch (IllegalStateException e) {
+            e.printStackTrace();
+            return false;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        try {
+            m_mediaPlayer.prepare();
+            if(!isPaused) {
+                m_mediaPlayer.start();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(getActivity(), "Failed to start media", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        catch (IllegalStateException e) {
+            e.printStackTrace();
+            Toast.makeText(getActivity(), "Failed to start media", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+        return true;
+    }
+
+    public void stopSong()
+    {
+        m_mediaPlayer.stop();
+        m_mediaPlayer.reset();
     }
 
     private void sendResponse(byte messID) {
         if(m_bluetoothClient != null) {
             byte[] out = MessageBuilder.buildMessageResponse(m_id, messID);
             m_bluetoothClient.sendDataToServer(out, false);
+        }
+    }
+
+    private void streamNextChunk() {
+        if(m_bluetoothClient != null) {
+            // figure out the chunk size
+            int chunkSize = 0;
+            if((m_currentPosition + SONG_CHUNK_SIZE) <= m_maxSongLength) {
+                chunkSize = SONG_CHUNK_SIZE;
+            }
+            else {
+                chunkSize = m_maxSongLength - m_currentPosition;
+            }
+            if(chunkSize > 0) {
+                // send the next chunk of data
+                byte[] nextChunk = new byte[chunkSize];
+                System.arraycopy(m_currentSong.data, m_currentPosition, nextChunk, 0, chunkSize);
+                // send this new byte array
+                byte[] newMessage = MessageBuilder.buildSongData(m_id, nextChunk);
+                m_bluetoothClient.sendDataToServer(newMessage, true);
+                // adjust our position
+                m_currentPosition += chunkSize;
+            }
+
+            if(m_currentPosition == m_maxSongLength) {
+                m_songStreamComplete = true;
+            }
+        }
+    }
+
+    BroadcastReceiver mReceiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context ctx, Intent intent) {
+            String action = intent.getAction();
+            Log.d(TAG, "receive intent for action : " + action);
+            if (action.equals(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)) {
+                int state = intent.getIntExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_DISCONNECTED);
+                if (state == BluetoothA2dp.STATE_CONNECTED) {
+                    Log.d(TAG, "A2DP Connected!");
+                } else if (state == BluetoothA2dp.STATE_DISCONNECTED) {
+                    Log.d(TAG, "A2DP Not Connected!");
+
+                }
+            } else if (action.equals(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED)) {
+                int state = intent.getIntExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_NOT_PLAYING);
+                if (state == BluetoothA2dp.STATE_PLAYING) {
+                    Log.d(TAG, "A2DP start playing");
+                } else {
+                    Log.d(TAG, "A2DP stop playing");
+                }
+            }
+        }
+    };
+
+    public void connectUsingBluetoothA2dp(Context context,
+                                          final BluetoothDevice deviceToConnect) {
+
+        try {
+            Class<?> c2 = Class.forName("android.os.ServiceManager");
+            Method m2 = c2.getDeclaredMethod("getService", String.class);
+            IBinder b = (IBinder) m2.invoke(c2.newInstance(), "bluetooth_a2dp");
+            if (b == null) {
+                // For Android 4.2 Above Devices
+                m_bluetoothClient.getBTAdapter().getProfileProxy(context,
+                        new BluetoothProfile.ServiceListener() {
+
+                            @Override
+                            public void onServiceDisconnected(int profile) {
+
+                            }
+
+                            @Override
+                            public void onServiceConnected(int profile,
+                                                           BluetoothProfile proxy) {
+                                m_a2dpProfile = (BluetoothA2dp) proxy;
+                                try {
+                                    m_a2dpProfile.getClass()
+                                            .getMethod("connect",BluetoothDevice.class)
+                                            .invoke(m_a2dpProfile, deviceToConnect);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }, BluetoothProfile.A2DP);
+            }
+            else {
+                // For Android below 4.2 devices
+                Class<?> c3 = Class.forName("android.bluetooth.IBluetoothA2dp");
+                Class<?>[] s2 = c3.getDeclaredClasses();
+                Class<?> c = s2[0];
+                Method m = c.getDeclaredMethod("asInterface", IBinder.class);
+                m.setAccessible(true);
+
+                IBluetoothA2dp a2dp = (IBluetoothA2dp) m.invoke(null, b);
+                a2dp.connect(deviceToConnect);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
