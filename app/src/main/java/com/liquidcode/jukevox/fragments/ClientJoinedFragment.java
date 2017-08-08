@@ -31,6 +31,7 @@ import android.widget.Toast;
 import com.liquidcode.jukevox.JukevoxMain;
 import com.liquidcode.jukevox.R;
 import com.liquidcode.jukevox.adapters.QueuedSongAdapter;
+import com.liquidcode.jukevox.musicobjects.ByteDataSource;
 import com.liquidcode.jukevox.musicobjects.Song;
 import com.liquidcode.jukevox.networking.Client.BluetoothClient;
 import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
@@ -41,7 +42,9 @@ import com.liquidcode.jukevox.networking.Messaging.MessageParser;
 import com.liquidcode.jukevox.networking.StreamingThread;
 import com.liquidcode.jukevox.util.BTUtils;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Locale;
@@ -77,11 +80,12 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
 
     // Variables that keep track of the clients current song its streaming to the server
     private final int SONG_CHUNK_SIZE = 800; // 800 bytes at a time?
-    private int m_currentPosition; // how much data we've sent so far
-    private int m_maxSongLength; // how much data this song is
+    private long m_currentPosition; // how much data we've sent so far
+    private long m_maxSongLength; // how much data this song is
     private Song m_currentSong;
     private boolean m_songStreamComplete;
     private AudioManager mAudioManager;
+    private byte[] m_currentSongByteArray;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -341,7 +345,19 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
 //             m_streamThread.start();
             m_currentPosition = 0;
             m_currentSong = songData;
-            //m_maxSongLength = m_currentSong.data.length;
+            m_maxSongLength = m_currentSong.data;
+            m_currentSongByteArray = new byte[(int)m_maxSongLength];
+            Uri fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, m_currentSong.id);
+            try {
+                InputStream inp = getContext().getContentResolver().openInputStream(fileUri);
+                try {
+                    inp.read(m_currentSongByteArray, 0, (int) m_maxSongLength);
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            } catch(FileNotFoundException ex) {
+                ex.printStackTrace();
+            }
             m_songStreamComplete = false;
             playSong(false);
             //streamNextChunk();
@@ -349,12 +365,13 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     }
 
     public boolean playSong(boolean isPaused) {
-        long id = m_currentSong.id;
-        // set up the file to be played
-        Uri fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
+//        long id = m_currentSong.id;
+//        // set up the file to be played
+//        Uri fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
+        ByteDataSource bds = new ByteDataSource(m_currentSongByteArray);
         try {
             // create the audio attributes
-            m_mediaPlayer.setDataSource(getActivity(), fileUri);
+            m_mediaPlayer.setDataSource(bds);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
             return false;
@@ -362,9 +379,6 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             e.printStackTrace();
             return false;
         } catch (IllegalStateException e) {
-            e.printStackTrace();
-            return false;
-        } catch (IOException e) {
             e.printStackTrace();
             return false;
         }
@@ -402,30 +416,30 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     }
 
     private void streamNextChunk() {
-        if(m_bluetoothClient != null) {
-            // figure out the chunk size
-            int chunkSize = 0;
-            if((m_currentPosition + SONG_CHUNK_SIZE) <= m_maxSongLength) {
-                chunkSize = SONG_CHUNK_SIZE;
-            }
-            else {
-                chunkSize = m_maxSongLength - m_currentPosition;
-            }
-            if(chunkSize > 0) {
-                // send the next chunk of data
-                byte[] nextChunk = new byte[chunkSize];
-                System.arraycopy(m_currentSong.data, m_currentPosition, nextChunk, 0, chunkSize);
-                // send this new byte array
-                byte[] newMessage = MessageBuilder.buildSongData(m_id, nextChunk);
-                m_bluetoothClient.sendDataToServer(newMessage, true);
-                // adjust our position
-                m_currentPosition += chunkSize;
-            }
-
-            if(m_currentPosition == m_maxSongLength) {
-                m_songStreamComplete = true;
-            }
-        }
+//        if(m_bluetoothClient != null) {
+//            // figure out the chunk size
+//            long chunkSize = 0;
+//            if((m_currentPosition + SONG_CHUNK_SIZE) <= m_maxSongLength) {
+//                chunkSize = SONG_CHUNK_SIZE;
+//            }
+//            else {
+//                chunkSize = m_maxSongLength - m_currentPosition;
+//            }
+//            if(chunkSize > 0) {
+//                // send the next chunk of data
+//                byte[] nextChunk = new byte[chunkSize];
+//                System.arraycopy(m_currentSong.data, m_currentPosition, nextChunk, 0, chunkSize);
+//                // send this new byte array
+//                byte[] newMessage = MessageBuilder.buildSongData(m_id, nextChunk);
+//                m_bluetoothClient.sendDataToServer(newMessage, true);
+//                // adjust our position
+//                m_currentPosition += chunkSize;
+//            }
+//
+//            if(m_currentPosition == m_maxSongLength) {
+//                m_songStreamComplete = true;
+//            }
+//        }
     }
 
     BroadcastReceiver mReceiver = new BroadcastReceiver() {

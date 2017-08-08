@@ -10,7 +10,7 @@ public class Song implements Parcelable, Serializable {
 	public String title;
 	public long duration;
 	public long id;
-	public byte[] data;
+	public long data;
 	
 	public Song(String t, long _id, long dur)
 	{
@@ -31,8 +31,7 @@ public class Song implements Parcelable, Serializable {
 		dest.writeLong(duration);
 		dest.writeLong(id);
 		dest.writeString(title);
-		dest.writeInt(data.length);
-		dest.writeByteArray(data);
+		dest.writeLong(data);
 	}
 	
 	public static final Parcelable.Creator<Song> CREATOR
@@ -50,10 +49,6 @@ public class Song implements Parcelable, Serializable {
 		duration = in.readLong();
 		id = in.readLong();
 		title = in.readString();
-		int dataSize = in.readInt();
-		if(dataSize != 0) {
-			data = new byte[dataSize];
-			in.readByteArray(data);
-		}
+		data = in.readLong();
 }
 }

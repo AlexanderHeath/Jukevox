@@ -66,7 +66,7 @@ public class LibraryLoader {
 		int durationColumn = cur.getColumnIndex(MediaStore.Audio.Media.DURATION);
 		int idColumn = cur.getColumnIndex(MediaStore.Audio.Media._ID);
 		int albumArtColumn = cur.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID);
-		int dataColumn = cur.getColumnIndex(MediaStore.Audio.Media.DATA);
+		int dataColumn = cur.getColumnIndex(MediaStore.Audio.Media.SIZE);
 
 		// add each song to mItems
 		do {
@@ -76,14 +76,14 @@ public class LibraryLoader {
 			String album = cur.getString(albumColumn);
 			long duration = cur.getLong(durationColumn);
 			long artID = cur.getLong(albumArtColumn);
-			String data = cur.getString(dataColumn);
+			long data = cur.getLong(dataColumn);
 
 			// parse for the album art
 			Uri sArtworkUri = Uri
 					.parse("content://media/external/audio/albumart");
 			Uri albumArtUri = ContentUris.withAppendedId(sArtworkUri, artID);
 
-			AddQueryToLibrary(artist, album, title, duration, _id, albumArtUri, null);
+			AddQueryToLibrary(artist, album, title, duration, _id, albumArtUri, data);
 
 		} while (cur.moveToNext());
 
@@ -115,7 +115,7 @@ public class LibraryLoader {
 
 	//	While we are looping through the phones storage finding music.  We need to start adding them to our internal
 	//	library.
-	private void AddQueryToLibrary(String artist, String album, String title, long duration, long id, Uri albumURI, byte[] data) {
+	private void AddQueryToLibrary(String artist, String album, String title, long duration, long id, Uri albumURI, long data) {
 		// lets see if we have the artist
 		// if we dont this artist is completely new and needs to be added
 		if(!mArtists.contains(new Artist(artist))) {
