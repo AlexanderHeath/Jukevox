@@ -49,7 +49,7 @@ public class MessageBuilder {
         return outgoing;
     }
 
-    public static byte[] buildSongData(byte clientID, byte[] songData) {
+    public static byte[] buildSongData(byte clientID, byte[] songData, boolean isDone) {
         // get the sizes for the data we're sending
         // outgoing song data = 1byte header (SM_SONGINFO) 1byte length + clientidsize + artist length + 1byte delim + song length + 1 byte delim
         short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE

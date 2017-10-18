@@ -83,9 +83,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private long m_currentPosition; // how much data we've sent so far
     private long m_maxSongLength; // how much data this song is
     private Song m_currentSong;
-    private boolean m_songStreamComplete;
     private AudioManager mAudioManager;
     private byte[] m_currentSongByteArray;
+    private boolean m_currentSongDone;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -111,6 +111,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         m_currentPosition = 0;
         m_maxSongLength = 0;
         m_currentSong = null;
+        m_currentSongDone = false;
         setBluetoothClient(btc);
         if(m_mediaPlayer == null) {
             m_mediaPlayer = new MediaPlayer();
@@ -336,7 +337,6 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     public void beginSongStreaming(String artist, Song songData) {
         // send the song info over
         if(m_bluetoothClient != null) {
-
             sendSongInfo(artist, songData.title);
             // start sending the bytes until we reached the max for the current song
 //             if(m_streamThread == null) {
@@ -358,9 +358,10 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             } catch(FileNotFoundException ex) {
                 ex.printStackTrace();
             }
-            m_songStreamComplete = false;
-            playSong(false);
-            //streamNextChunk();
+            // lets check real quick that our song size isn't less than our chunk size (signaling we finished)
+            m_currentSongDone = (m_maxSongLength <= SONG_CHUNK_SIZE) ? true : false;
+            // stream the first chunk
+            streamNextChunk();
         }
     }
 
@@ -371,7 +372,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         ByteDataSource bds = new ByteDataSource(m_currentSongByteArray);
         try {
             // create the audio attributes
-            m_mediaPlayer.setDataSource(bds);
+            //m_mediaPlayer.setDataSource(bds);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
             return false;
@@ -416,30 +417,28 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     }
 
     private void streamNextChunk() {
-//        if(m_bluetoothClient != null) {
-//            // figure out the chunk size
-//            long chunkSize = 0;
-//            if((m_currentPosition + SONG_CHUNK_SIZE) <= m_maxSongLength) {
-//                chunkSize = SONG_CHUNK_SIZE;
-//            }
-//            else {
-//                chunkSize = m_maxSongLength - m_currentPosition;
-//            }
-//            if(chunkSize > 0) {
-//                // send the next chunk of data
-//                byte[] nextChunk = new byte[chunkSize];
-//                System.arraycopy(m_currentSong.data, m_currentPosition, nextChunk, 0, chunkSize);
-//                // send this new byte array
-//                byte[] newMessage = MessageBuilder.buildSongData(m_id, nextChunk);
-//                m_bluetoothClient.sendDataToServer(newMessage, true);
-//                // adjust our position
-//                m_currentPosition += chunkSize;
-//            }
-//
-//            if(m_currentPosition == m_maxSongLength) {
-//                m_songStreamComplete = true;
-//            }
-//        }
+        if(m_bluetoothClient != null) {
+            // figure out the chunk size
+            long chunkSize = 0;
+            if((m_currentPosition + SONG_CHUNK_SIZE) <= m_maxSongLength) {
+                chunkSize = SONG_CHUNK_SIZE;
+                m_currentSongDone = false;
+            }
+            else {
+                chunkSize = m_maxSongLength - m_currentPosition;
+                m_currentSongDone = true;
+            }
+            if(chunkSize > 0) {
+                // send the next chunk of data
+                byte[] nextChunk = new byte[(int)chunkSize];
+                System.arraycopy(m_currentSongByteArray, (int)m_currentPosition, nextChunk, 0, (int)chunkSize);
+                // send this new byte array
+                byte[] newMessage = MessageBuilder.buildSongData(m_id, nextChunk, m_currentSongDone);
+                m_bluetoothClient.sendDataToServer(newMessage, true);
+                // adjust our position
+                m_currentPosition += chunkSize;
+            }
+        }
     }
 
     BroadcastReceiver mReceiver = new BroadcastReceiver() {

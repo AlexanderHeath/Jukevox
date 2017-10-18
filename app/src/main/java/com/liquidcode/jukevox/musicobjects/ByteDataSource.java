@@ -1,13 +1,15 @@
 package com.liquidcode.jukevox.musicobjects;
 
+import android.annotation.TargetApi;
 import android.media.MediaDataSource;
+import android.os.Build;
 
 import java.io.IOException;
 
 /**
  * Created by mikev on 7/8/2017.
  */
-
+@TargetApi(Build.VERSION_CODES.M)
 public class ByteDataSource extends MediaDataSource {
 
     private byte[] m_data;
