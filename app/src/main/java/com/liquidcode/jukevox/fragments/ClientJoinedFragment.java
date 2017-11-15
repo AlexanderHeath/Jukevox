@@ -272,7 +272,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                     break;
                 }
                 case BTMessages.SM_CLIENTID: {
-                    m_id = MessageParser.parseCientIDData(message);
+                    m_id = MessageParser.parseClientIDData(message);
                     if (m_bluetoothClient != null) {
                         // send our response
                         sendResponse(BTMessages.SM_CLIENTID);
@@ -437,6 +437,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 m_bluetoothClient.sendDataToServer(newMessage, true);
                 // adjust our position
                 m_currentPosition += chunkSize;
+                updateClientCount((int)m_currentPosition);
             }
         }
     }

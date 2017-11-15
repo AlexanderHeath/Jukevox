@@ -25,6 +25,10 @@ public interface BTMessages {
     // default time delay that a sent message waits before resending
     float DEFAULT_DELAY = 5.0f;
 
+    // INDEXES
+    // index where the boolean value for a song data being finished lives
+    byte SM_MESSAGEHEADER_SONGFINISHED_INDEX = 4;
+    // SIZES
     // size in bytes of a whole message header not including actual data
     // HEADERSIZE (1) - LENGTH (2) - CLIENTID (1)
     byte SM_MESSAGEHEADERSIZE = 4;
@@ -35,7 +39,8 @@ public interface BTMessages {
     byte SM_LENGTH = 2; // two bytes for the length
     byte SM_DELIMITERSIZE = 1;
     byte SM_CLIENTIDSIZE = 1;
-    // Message headers ( 1 - 50 reserved for requests )
+    byte SM_BOOLEAN = 1;
+    // MESSAGE HEADERS ( 1 - 50 reserved for requests )
     byte SM_CLIENTCOUNT = 1;
     byte SM_SONGINFO = 2;
     byte SM_SONGDATA = 3;
@@ -43,6 +48,7 @@ public interface BTMessages {
     byte SM_CLIENTDISPLAYNAME = 5;
     byte SM_CLIENTID = 6;
 
+    // RESPONSES
     // Response message headers (reserved 51 - 100)
     byte SMR_RESPONSE = 51;
 

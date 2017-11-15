@@ -1,5 +1,7 @@
 package com.liquidcode.jukevox.networking.Messaging;
 
+import android.util.Log;
+
 import com.liquidcode.jukevox.networking.MessageObjects.BasicByteWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.BasicStringWrapper;
 import com.liquidcode.jukevox.networking.MessageObjects.SongDataWrapper;
@@ -40,11 +42,18 @@ public class MessageParser {
     public static SongDataWrapper parseSongData(byte[] incoming) {
         SongDataWrapper songData = null;
         if(incoming.length > 0) {
-            byte clientID = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];
+            int currentIndex = BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID; // set to index 3 (msg type(index 0) + 2length(index 2)
+            byte clientID = incoming[currentIndex];
+            currentIndex = BTMessages.SM_MESSAGEHEADER_SONGFINISHED_INDEX;  // set to index 4
+            byte songFinishedValue = incoming[currentIndex];
+            boolean isSongFinished = (songFinishedValue == 1) ? true : false;
+            // typically normal messages start at index 4 but since this has an extra boolean
+            // we are going to set to the BTMessages.SM_MESSAGEHEADERSIZE + 1 = index 5.
+            currentIndex = BTMessages.SM_MESSAGEHEADERSIZE + 1; /// start at index 5
             // get the new byte array of song data
-            byte[] songbuffer = new byte[incoming.length-BTMessages.SM_MESSAGEHEADERSIZE];
-            System.arraycopy(incoming, BTMessages.SM_MESSAGEHEADERSIZE, songbuffer, 0, incoming.length-BTMessages.SM_MESSAGEHEADERSIZE);
-            songData = new SongDataWrapper(clientID, songbuffer);
+            byte[] songbuffer = new byte[incoming.length-currentIndex];
+            System.arraycopy(incoming, currentIndex, songbuffer, 0, incoming.length-currentIndex);
+            songData = new SongDataWrapper(clientID, songbuffer, isSongFinished);
         }
         return songData;
     }
@@ -89,7 +98,7 @@ public class MessageParser {
      * @param incoming - the incoming byte array
      * @return
      */
-    public static byte parseCientIDData(byte[] incoming) {
+    public static byte parseClientIDData(byte[] incoming) {
         byte id = 0;
         if(incoming.length > 0) {
             id = incoming[BTMessages.SM_MESSAGEHEADERSIZE_NOCLIENTID];

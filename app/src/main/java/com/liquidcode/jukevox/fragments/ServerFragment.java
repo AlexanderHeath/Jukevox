@@ -17,6 +17,7 @@ import com.liquidcode.jukevox.networking.Server.BluetoothServer;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.util.BTUtils;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothProfile;
 import android.media.MediaPlayer;
@@ -48,15 +49,17 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 	private TextView m_logText = null;
 	private TextView m_clientCountText = null;
 	private ArrayList<BluetoothSocket> m_connectedDevices = null;
-    // our bluetoothManager instance to make conecctions and send data with
-    private BluetoothServer m_bluetoothServer = null;
+	// our bluetoothManager instance to make conecctions and send data with
+	private BluetoothServer m_bluetoothServer = null;
 	// our connection variables for the UI
 	private int m_currentClients = 0; // start at 0 clients
 	// Queue list variables
 	private QueuedSongAdapter m_queueAdapter = null;
 	private ListView m_queueListview = null;
-	// list of queued song that we get from the server
+	// list of queued song that we get from the clients
 	private ArrayList<SongInfoWrapper> m_queuedSongList = null;
+	// list of songs we are processing from the client currently
+	private ArrayList<SongInfoWrapper> m_processingList = null;
 	private MediaPlayer m_mediaPlayer;
 
 	@Override
@@ -67,39 +70,38 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 
 		initWidgets(root);
 		m_logText.append("-Starting Server...\n");
-		if(getArguments() != null) {
+		if (getArguments() != null) {
 			m_roomName = getArguments().getString("roomName");
 		}
-		if(m_roomName != null)
-		{
+		if (m_roomName != null) {
 			m_adapter = BluetoothAdapter.getDefaultAdapter();
-			if(m_adapter != null) {
+			if (m_adapter != null) {
 				// request for the bluetooth to be enabled
 				m_logText.append("-Requesting Bluetooth access...\n");
 				RequestBluetoothPermission();
-			}
-			else {
+			} else {
 				m_logText.append("Bluetooth not supported on this device!\n");
 				Log.e(TAG, "Bluetooth not supported on this device!\n");
 			}
-		}
-		else
-		{
+		} else {
 			m_logText.append("Failed to create room!\n");
-			((JukevoxMain)getActivity()).removeCurrentFragment();
+			((JukevoxMain) getActivity()).removeCurrentFragment();
 		}
 		return root;
 	}
 
 	public void initializeRoom() {
 		m_currentClients = 0;
-		if(m_queuedSongList != null) {
+		if (m_queuedSongList != null) {
 			m_queuedSongList.clear();
 		}
-		if(m_queueAdapter != null) {
+		if (m_processingList != null) {
+			m_processingList.clear();
+		}
+		if (m_queueAdapter != null) {
 			m_queueAdapter.notifyDataSetChanged();
 		}
-		if(m_mediaPlayer == null) {
+		if (m_mediaPlayer == null) {
 			m_mediaPlayer = new MediaPlayer();
 			m_mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
 				@Override
@@ -112,8 +114,11 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 
 	private void initWidgets(ViewGroup root) {
 		// if the arraylist of songInfo is null create it
-		if(m_queuedSongList == null) {
+		if (m_queuedSongList == null) {
 			m_queuedSongList = new ArrayList<>();
+		}
+		if (m_processingList == null) {
+			m_processingList = new ArrayList<>();
 		}
 		// init the listview and adapter
 		m_queueListview = (ListView) root.findViewById(R.id.room_song_list);
@@ -129,9 +134,9 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 	}
 
 	private void initTextWidgets(ViewGroup root) {
-		m_logText = (TextView)root.findViewById(R.id.serverLogText);
+		m_logText = (TextView) root.findViewById(R.id.serverLogText);
 		m_logText.setMovementMethod(new ScrollingMovementMethod());
-		m_clientCountText = (TextView)root.findViewById(R.id.clientCountText);
+		m_clientCountText = (TextView) root.findViewById(R.id.clientCountText);
 	}
 
 	private void updateClientCount() {
@@ -139,31 +144,27 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		// now set the text for the textview
 		m_clientCountText.setText(formattedText);
 	}
-	
+
 	@Override
-	public void onActivityResult(int requestCode, int resultCode, Intent data)
-	{
-		if(requestCode == REQUEST_ENABLE && resultCode != REQUEST_ENABLED_REJECTED)
-		{
-            m_adapter.enable();
+	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		if (requestCode == REQUEST_ENABLE && resultCode != REQUEST_ENABLED_REJECTED) {
+			m_adapter.enable();
 			// set the bluetooth device name to the room name chosen
 			m_adapter.setName(m_roomName);
-            m_logText.append("-Room Name: " + m_roomName + "\n");
+			m_logText.append("-Room Name: " + m_roomName + "\n");
 			m_logText.append("-Server is now discoverable!\n");
 			m_logText.append("-Listening on RFCOMM Channel.\n");
 			m_logText.append("-Waiting for connections.\n");
-            // if the BluetoothManager is null. create it.
-            if(m_bluetoothServer == null) {
-                m_bluetoothServer = new BluetoothServer(mHandler);
-            }
-            // try and get the A2DP profile
+			// if the BluetoothManager is null. create it.
+			if (m_bluetoothServer == null) {
+				m_bluetoothServer = new BluetoothServer(mHandler);
+			}
+			// try and get the A2DP profile
 			initBluetoothServiceListener();
-            // start the listener thread
-            m_bluetoothServer.startServerListen();
-		}
-		else
-		{
-			((JukevoxMain)getActivity()).removeCurrentFragment();
+			// start the listener thread
+			m_bluetoothServer.startServerListen();
+		} else {
+			((JukevoxMain) getActivity()).removeCurrentFragment();
 		}
 	}
 
@@ -171,9 +172,9 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 		m_btServiceListener = new BluetoothProfile.ServiceListener() {
 			@Override
 			public void onServiceConnected(int i, BluetoothProfile bluetoothProfile) {
-				if(bluetoothProfile != null && i == BluetoothProfile.A2DP) {
+				if (bluetoothProfile != null && i == BluetoothProfile.A2DP) {
 					// we have a valid profile
-					m_a2dpProfile = (BluetoothA2dp)bluetoothProfile;
+					m_a2dpProfile = (BluetoothA2dp) bluetoothProfile;
 				}
 			}
 
@@ -185,31 +186,30 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 
 		// set up the bluetooth a2dp profile
 		// TODO: change this to only be done when bluetooth connection is selected
-		if(m_adapter != null) {
+		if (m_adapter != null) {
 			boolean result = m_adapter.getProfileProxy(getActivity(), m_btServiceListener, BluetoothProfile.A2DP);
-			if(result) {
+			if (result) {
 				Log.d(TAG, "Acquired A2DP profile");
-			}
-			else {
+			} else {
 				Log.d(TAG, "Failed to get A2DP profile");
 			}
 		}
 	}
-	
-	private void RequestBluetoothPermission()
-	{
+
+	private void RequestBluetoothPermission() {
 		Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
 		i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
 		startActivityForResult(i, REQUEST_ENABLE);
 	}
 
-    /**
-     * The Handler that gets information back from the BluetoothChatService
-     */
-    private final Handler mHandler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            switch(msg.what) {
+	/**
+	 * The Handler that gets information back from the BluetoothChatService
+	 */
+	@SuppressLint("HandlerLeak")
+	private final Handler mHandler = new Handler() {
+		@Override
+		public void handleMessage(Message msg) {
+			switch (msg.what) {
 				case BTMessages.MESSAGE_CLIENT_DEVICE_CONNECTED: {
 					// save the connected device's name
 					byte newClientID = msg.getData().getByte(BTMessages.CLIENT_ID);
@@ -254,22 +254,24 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 					}
 					break;
 				}
-            }
-        }
-    };
+			}
+		}
+	};
 
 	private void processIncomingMessage(byte[] buffer) {
 		ArrayList<byte[]> messages = MessageParser.splitMessages(buffer);
-		for(byte[] message : messages) {
+		for (byte[] message : messages) {
 			// message[0] is always the byte that tells us what message this is ALWAYS
 			switch (message[0]) {
 				case BTMessages.SM_SONGINFO: {
 					SongInfoWrapper songinfo = MessageParser.parseSongInfo(message);
 					if (songinfo != null) {
+						// add to the processing list
+						addNewSongInfo(songinfo);
 						// update the queued list to reflect the new song we received from a client
-						m_queuedSongList.add(songinfo);
-						m_queueAdapter.notifyDataSetChanged();
-						m_queueListview.setAdapter(m_queueAdapter);
+//						m_queuedSongList.add(songinfo);
+//						m_queueAdapter.notifyDataSetChanged();
+//						m_queueListview.setAdapter(m_queueAdapter);
 						//send this buffer to all clients since the data was good
 						//this will build our queue of songs upon being received.
 						//if there is no song playing there should be a follow up to this message that
@@ -286,7 +288,9 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 				}
 				case BTMessages.SM_SONGDATA: {
 					SongDataWrapper songData = MessageParser.parseSongData(message);
-					if(songData != null && m_bluetoothServer != null) {
+					// update the existing buffer in the prcessinglist
+					updateSongData(songData);
+					if (songData != null && m_bluetoothServer != null) {
 						m_bluetoothServer.sendDataToClient(songData.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_SONGDATA), false);
 					}
 
@@ -333,6 +337,36 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 			}
 		}
 	}
+
+	private void addNewSongInfo(SongInfoWrapper info) {
+		boolean addSong = true;
+		for (SongInfoWrapper existing : m_processingList) {
+			if (info.getClientID() == existing.getClientID()) {
+				addSong = false;
+				break; // this client is already sending us something
+			}
+		}
+		if (addSong) {
+			m_processingList.add(info);
+		}
+	}
+
+	private void updateSongData(SongDataWrapper data) {
+		for (SongInfoWrapper existing : m_processingList) {
+			if (existing.getClientID() == data.getClientID()) {
+				existing.addToBuffer(data.getSongData());
+				// we updated the buffer lets see if this should be removed from the processing list
+				// and added to the queued list
+				if (data.isSongFinshed()) {
+					m_queuedSongList.add(existing);
+					// remove from this list
+					m_processingList.remove(existing);
+				}
+				break;
+			}
+		}
+	}
+
 
 	@Override
 	public void onResume() {

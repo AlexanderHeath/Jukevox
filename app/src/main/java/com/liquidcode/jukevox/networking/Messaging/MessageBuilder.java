@@ -49,10 +49,18 @@ public class MessageBuilder {
         return outgoing;
     }
 
+    /**
+     * Builds the current chunk of this song and sends it to the server.
+     * This will repeat until the the whole song is sent.
+     * @param clientID - the client sending this message
+     * @param songData - the byte data representing the song data
+     * @param isDone - is this song done sending the data
+     * @return - the byte info
+     */
     public static byte[] buildSongData(byte clientID, byte[] songData, boolean isDone) {
         // get the sizes for the data we're sending
-        // outgoing song data = 1byte header (SM_SONGINFO) 1byte length + clientidsize + artist length + 1byte delim + song length + 1 byte delim
-        short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE
+        // outgoing song data = 1byte header (SM_SONGDATA) + MESSAGE_LENGTH + CLIENT ID SIZE + 1byte BOOLEAN (finished) + song data length
+        short outSize = (short)(BTMessages.SM_MESSAGETYPESIZE + BTMessages.SM_LENGTH + BTMessages.SM_CLIENTIDSIZE + BTMessages.SM_BOOLEAN
                 + songData.length);
         byte[] outgoing = new byte[outSize];
         // now build our byte data
@@ -67,6 +75,9 @@ public class MessageBuilder {
         ++currentIndex;
         // client id
         outgoing[currentIndex] = clientID;
+        ++currentIndex;
+        // boolean
+        outgoing[currentIndex] = (isDone) ? (byte)1 : (byte)0;
         ++currentIndex;
         // copy the song data into the outgoing array
         System.arraycopy(songData, 0, outgoing, currentIndex, songData.length);
