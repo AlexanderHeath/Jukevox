@@ -13,5 +13,5 @@ public interface BTUtils {
 
 	// max connected clients allowed
 	int MAX_BT_CLIENTS = 8;
-	int MAX_SOCKET_READ = 2048;
+	int MAX_SOCKET_READ = 8192; //2048;
 }

@@ -69,9 +69,10 @@ public class MessageBuilder {
         outgoing[currentIndex] = BTMessages.SM_SONGDATA;
         ++currentIndex;
         // length
-        outgoing[currentIndex] = (byte)outSize;
+        int shiftOutsize = outSize;
+        outgoing[currentIndex] = (byte)(shiftOutsize & 0xFF);
         ++currentIndex;
-        outgoing[currentIndex] = (byte)(outSize >> 8);
+        outgoing[currentIndex] = (byte)((shiftOutsize >> 8) & 0xFF);
         ++currentIndex;
         // client id
         outgoing[currentIndex] = clientID;

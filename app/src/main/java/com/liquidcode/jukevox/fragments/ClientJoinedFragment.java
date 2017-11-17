@@ -79,7 +79,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private MediaPlayer m_mediaPlayer = null;
 
     // Variables that keep track of the clients current song its streaming to the server
-    private final int SONG_CHUNK_SIZE = 800; // 800 bytes at a time?
+    private final int SONG_CHUNK_SIZE = 8000; // 800 bytes at a time?
     private long m_currentPosition; // how much data we've sent so far
     private long m_maxSongLength; // how much data this song is
     private Song m_currentSong;
@@ -180,7 +180,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     @Override
     public void onStop() {
         super.onStop();
-        stopSong();
+        //stopSong();
         getActivity().unregisterReceiver(mReceiver);
         if(m_bluetoothClient != null) {
             m_bluetoothClient.getBTAdapter().closeProfileProxy(BluetoothProfile.A2DP, m_a2dpProfile);
@@ -405,8 +405,8 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
 
     public void stopSong()
     {
-        m_mediaPlayer.stop();
-        m_mediaPlayer.reset();
+        //m_mediaPlayer.stop();
+        //m_mediaPlayer.reset();
     }
 
     private void sendResponse(byte messID) {

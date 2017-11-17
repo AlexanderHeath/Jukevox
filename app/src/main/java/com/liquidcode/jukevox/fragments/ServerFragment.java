@@ -268,19 +268,10 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 					if (songinfo != null) {
 						// add to the processing list
 						addNewSongInfo(songinfo);
-						// update the queued list to reflect the new song we received from a client
-//						m_queuedSongList.add(songinfo);
-//						m_queueAdapter.notifyDataSetChanged();
-//						m_queueListview.setAdapter(m_queueAdapter);
-						//send this buffer to all clients since the data was good
-						//this will build our queue of songs upon being received.
-						//if there is no song playing there should be a follow up to this message that
-						//contains the streaming byte data to play
 						if (m_bluetoothServer != null) {
 							// send the songinfo response so they stop sending this message
 							m_bluetoothServer.sendDataToClient(songinfo.getClientID(), MessageBuilder.buildMessageResponse(BTMessages.SM_SONGINFO), false);
-							// send the new song to the clients
-							m_bluetoothServer.sendDataToClients(message, true);
+
 						}
 						m_logText.append("-" + songinfo.getArtist() + " - " + songinfo.getSongName() + "\n");
 					}
@@ -358,13 +349,26 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 				// we updated the buffer lets see if this should be removed from the processing list
 				// and added to the queued list
 				if (data.isSongFinshed()) {
-					m_queuedSongList.add(existing);
+					addSongToQueueAndNotifyClients(existing);
 					// remove from this list
 					m_processingList.remove(existing);
 				}
 				break;
 			}
 		}
+	}
+
+	public void addSongToQueueAndNotifyClients(SongInfoWrapper songinfo) {
+		// update the queued list to reflect the new song we received from a client
+		m_queuedSongList.add(songinfo);
+		m_queueAdapter.notifyDataSetChanged();
+		m_queueListview.setAdapter(m_queueAdapter);
+		// send this buffer to all clients since the data was good
+		// this will build our queue of songs upon being received.
+		// if there is no song playing there should be a follow up to this message that
+		// send the new song to the clients
+		byte[] message = MessageBuilder.buildSongInfo(songinfo.getClientID(), songinfo.getArtist(), songinfo.getSongName());
+		m_bluetoothServer.sendDataToClients(message, true);
 	}
 
 

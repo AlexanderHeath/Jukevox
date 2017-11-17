@@ -161,19 +161,26 @@ public class MessageParser {
         int currentIndex = 0, startPosition = 0;
         // get the message header
         while(buffer[startPosition] != 0) {
+            if(buffer[0] == BTMessages.SM_SONGDATA) {
+                Log.d("tag", "Stop here");
+            }
             // get the size of this whole message
-            short messSize;
+            int messSize;
             // move the current pointer (lo byte) (header + 1byte)
             ++currentIndex;
-            byte lo = buffer[startPosition + currentIndex];
+            int lo = buffer[startPosition + currentIndex];
             ++currentIndex;
             // get hi byte
-            byte hi = buffer[startPosition + currentIndex];
+            int hi = buffer[startPosition + currentIndex];
             ++currentIndex;
-            messSize = (short)(((hi & 0xFF) << 8) | (lo & 0xff));
+            messSize = (short)((hi << 8) | (lo & 0xFF));
             // we got the size
             if(messSize <= 0) {
                 break;
+            }
+            // now lets do a check that the "length" of the message isnt bigger than what we actually received.
+            if(buffer.length < messSize) {
+                messSize = buffer.length;
             }
             // copy this message into the array list
             byte[] newMessage = new byte[messSize];

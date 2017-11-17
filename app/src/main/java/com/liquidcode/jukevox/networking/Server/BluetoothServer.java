@@ -11,8 +11,6 @@ import android.util.Log;
 
 import com.liquidcode.jukevox.networking.Client.ClientInfo;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
-import com.liquidcode.jukevox.networking.Messaging.MessageParser;
-import com.liquidcode.jukevox.networking.Messaging.SentMessage;
 import com.liquidcode.jukevox.networking.Messaging.SentMessageThread;
 import com.liquidcode.jukevox.util.BTStates;
 import com.liquidcode.jukevox.util.BTUtils;
@@ -20,10 +18,7 @@ import com.liquidcode.jukevox.util.BTUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -382,20 +377,52 @@ public class BluetoothServer {
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
             byte[] buffer = new byte[BTUtils.MAX_SOCKET_READ];
-            byte[] processBuffer = null;
+            byte[] processBuffer = null; // buffer for our final whole message
+            byte[] previousBuffer = null; // buffer for our previously read data
             int bytesReceived;
+            int expectedBytes = 0;
+            boolean keepReading = false;
+            int currentBytesRead = 0;
             // Keep listening to the InputStream while connected
             while (m_state == BTStates.STATE_CONNECTED) {
                 try {
                     // Read from the InputStream
                     bytesReceived = m_inputStream.read(buffer);
-                    if(bytesReceived > 0) {
+                    if (bytesReceived > 0) {
+                        if (!keepReading) {
+                            // check this message for expected bytes
+                            expectedBytes = getLength(buffer);
+                            if(expectedBytes > bytesReceived) {
+                                keepReading = true;
+                            }
+                        }
+
+                        if(currentBytesRead > 0) {
+                            previousBuffer = new byte[currentBytesRead];
+                            // copy our old data into this buffer
+                            System.arraycopy(processBuffer, 0, previousBuffer, 0, currentBytesRead);
+                        }
+                        int totalBytes = currentBytesRead + bytesReceived;
                         // create the new copy buffer that we are going to process messages from
-                        processBuffer = new byte[bytesReceived];
-                        System.arraycopy(buffer, 0, processBuffer, 0, bytesReceived);
-                        // Send the obtained bytes to the UI Activity
-                        m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, bytesReceived, -1, processBuffer)
-                                .sendToTarget();
+                        processBuffer = new byte[totalBytes];
+                        if(previousBuffer != null) {
+                            // copy what we've read first
+                            System.arraycopy(previousBuffer, 0, processBuffer, 0, currentBytesRead);
+                        }
+                        System.arraycopy(buffer, 0, processBuffer, currentBytesRead, bytesReceived);
+                        // have we received this whole message yet?
+                        if(totalBytes == expectedBytes) {
+                            keepReading = false;
+                        }
+                        if (!keepReading) {
+                            // Send the obtained bytes to the UI Activity
+                            m_uiHandler.obtainMessage(BTMessages.MESSAGE_READ, totalBytes, -1, processBuffer)
+                                    .sendToTarget();
+                            currentBytesRead = 0;
+                        }
+                        else {
+                            currentBytesRead += bytesReceived;
+                        }
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "disconnected", e);
@@ -403,6 +430,15 @@ public class BluetoothServer {
                     break;
                 }
             }
+        }
+
+        private int getLength(byte[] buffer) {
+            int messLength = 0;
+            int lo = buffer[1];
+            // get hi byte
+            int hi = buffer[2];
+            messLength = (int)((hi << 8) | (lo & 0xFF));
+            return messLength;
         }
 
         private void cancel() {
