@@ -1,5 +1,9 @@
 package com.liquidcode.jukevox.fragments;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -352,9 +356,36 @@ public class ServerFragment extends android.support.v4.app.Fragment {
 					addSongToQueueAndNotifyClients(existing);
 					// remove from this list
 					m_processingList.remove(existing);
+					playSong(existing.getSongData().getSongData());
 				}
 				break;
 			}
+		}
+	}
+
+	private void playSong(byte[] songData) {
+		try {
+			// create temp file that will hold byte array
+			File tempMp3 = File.createTempFile("jukevox", "mp3", getActivity().getCacheDir());
+			tempMp3.deleteOnExit();
+			FileOutputStream fos = new FileOutputStream(tempMp3);
+			fos.write(songData);
+			fos.close();
+
+			// resetting mediaplayer instance to evade problems
+			m_mediaPlayer.reset();
+
+			// Tried passing path directly, but kept getting
+			// "Prepare failed.: status=0x1"
+			// so using file descriptor instead
+			FileInputStream fis = new FileInputStream(tempMp3);
+			m_mediaPlayer.setDataSource(fis.getFD());
+
+			m_mediaPlayer.prepare();
+			m_mediaPlayer.start();
+		} catch (IOException ex) {
+			String s = ex.toString();
+			ex.printStackTrace();
 		}
 	}
 

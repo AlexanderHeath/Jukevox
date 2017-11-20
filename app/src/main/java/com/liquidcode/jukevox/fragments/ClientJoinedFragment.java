@@ -79,11 +79,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private MediaPlayer m_mediaPlayer = null;
 
     // Variables that keep track of the clients current song its streaming to the server
-    private final int SONG_CHUNK_SIZE = 8000; // 800 bytes at a time?
+    private final int SONG_CHUNK_SIZE = 10000; // 8000 bytes at a time?
     private long m_currentPosition; // how much data we've sent so far
     private long m_maxSongLength; // how much data this song is
-    private Song m_currentSong;
     private AudioManager mAudioManager;
+    private Song m_currentSong;
     private byte[] m_currentSongByteArray;
     private boolean m_currentSongDone;
 
