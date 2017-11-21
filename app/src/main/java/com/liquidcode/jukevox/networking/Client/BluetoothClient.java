@@ -301,7 +301,7 @@ public class BluetoothClient {
 
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
-            byte[] buffer = new byte[BTUtils.MAX_SOCKET_READ];
+            byte[] buffer = new byte[BTUtils.MAX_CLIENT_SOCKET_READ];
             byte[] processBuffer = null;
             int bytesReceived;
             // Keep listening to the InputStream while connected

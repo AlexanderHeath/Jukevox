@@ -9,7 +9,7 @@ android {
             storePassword 'liquid90'
         }
     }
-    compileSdkVersion 24
+    compileSdkVersion 26
     defaultConfig {
         applicationId "com.liquidcode.jukevox"
         minSdkVersion 19
@@ -30,13 +30,12 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:appcompat-v7:24.2.1'
-    compile 'com.android.support:design:24.2.1'
-    compile 'com.google.android.gms:play-services-appindexing:9.8.0'
-    compile 'com.android.support:support-v4:24.2.1'
-    compile 'com.android.support:recyclerview-v7:24.2.1'
+    compile 'com.android.support:appcompat-v7:26.0.0'
+    compile 'com.android.support:design:26.0.0'
+    compile 'com.android.support:support-v4:26.0.0'
+    compile 'com.android.support:recyclerview-v7:26.0.0'
     compile 'com.google.android.gms:play-services-auth:9.8.0'
     testCompile 'junit:junit:4.12'
     apply plugin: 'com.google.gms.google-services'
-    compile 'com.android.support:preference-v7:24.2.1'
+    compile 'com.android.support:preference-v7:26.0.0'
 }

@@ -25,6 +25,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -60,6 +61,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private static final String TAG = "BTJClient";
     private TextView m_logText = null;
     private TextView m_clientCountText = null;
+    private ProgressBar m_sendingProgress = null;
     // our BluetoothManager instance
     private BluetoothClient m_bluetoothClient = null;
     // are we currently connected to a room?
@@ -149,7 +151,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             }
             m_queueListview.setAdapter(m_queueAdapter);
         }
-
+        // init the sending progress bar so we can use it when we need to
+        m_sendingProgress = (ProgressBar) root.findViewById(R.id.sendingProgress);
+        m_sendingProgress.setVisibility(View.INVISIBLE);
         initTextWidgets(root);
     }
 
@@ -360,6 +364,12 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             }
             // lets check real quick that our song size isn't less than our chunk size (signaling we finished)
             m_currentSongDone = (m_maxSongLength <= SONG_CHUNK_SIZE) ? true : false;
+            // lets set up the seind progress bar
+            if(m_sendingProgress != null) {
+                m_sendingProgress.setVisibility(View.VISIBLE);
+                m_sendingProgress.setMax((int)m_maxSongLength);
+                m_sendingProgress.setProgress(0);
+            }
             // stream the first chunk
             streamNextChunk();
         }
@@ -427,6 +437,12 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             else {
                 chunkSize = m_maxSongLength - m_currentPosition;
                 m_currentSongDone = true;
+                // rest the progress
+                if(m_sendingProgress != null) {
+                    m_sendingProgress.setMax(0);
+                    m_sendingProgress.setVisibility(View.INVISIBLE);
+                    m_sendingProgress.setProgress(0);
+                }
             }
             if(chunkSize > 0) {
                 // send the next chunk of data
@@ -438,6 +454,8 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 // adjust our position
                 m_currentPosition += chunkSize;
                 updateClientCount((int)m_currentPosition);
+                // update the progress bar
+                m_sendingProgress.setProgress(m_sendingProgress.getProgress() + (int)chunkSize);
             }
         }
     }
