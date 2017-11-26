@@ -1,7 +1,6 @@
 package com.liquidcode.jukevox.fragments;
 
 import android.bluetooth.BluetoothA2dp;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothA2dp;
@@ -40,7 +39,6 @@ import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
 import com.liquidcode.jukevox.networking.Messaging.MessageParser;
-import com.liquidcode.jukevox.networking.StreamingThread;
 import com.liquidcode.jukevox.util.BTUtils;
 
 import java.io.FileNotFoundException;
@@ -74,14 +72,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private byte m_id;
     // our display name
     private String m_displayName;
-    // the clients Steaming music thread
-    private StreamingThread m_streamThread;
     private BluetoothA2dp m_a2dpProfile = null;
     private BluetoothProfile.ServiceListener m_btServiceListener = null;
     private MediaPlayer m_mediaPlayer = null;
 
     // Variables that keep track of the clients current song its streaming to the server
-    private final int SONG_CHUNK_SIZE = 10000; // 8000 bytes at a time?
     private long m_currentPosition; // how much data we've sent so far
     private long m_maxSongLength; // how much data this song is
     private AudioManager mAudioManager;
@@ -199,9 +194,6 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         // disconnect from the server here since we are actively connected
         if(m_bluetoothClient != null) {
             m_bluetoothClient.disconnectFromServer();
-        }
-        if(m_streamThread != null) {
-            m_streamThread.cancel();
         }
     }
 
@@ -363,7 +355,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                 ex.printStackTrace();
             }
             // lets check real quick that our song size isn't less than our chunk size (signaling we finished)
-            m_currentSongDone = (m_maxSongLength <= SONG_CHUNK_SIZE) ? true : false;
+            m_currentSongDone = (m_maxSongLength <= BTUtils.SONG_CHUNK_SIZE) ? true : false;
             // lets set up the seind progress bar
             if(m_sendingProgress != null) {
                 m_sendingProgress.setVisibility(View.VISIBLE);
@@ -430,8 +422,8 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         if(m_bluetoothClient != null) {
             // figure out the chunk size
             long chunkSize = 0;
-            if((m_currentPosition + SONG_CHUNK_SIZE) <= m_maxSongLength) {
-                chunkSize = SONG_CHUNK_SIZE;
+            if((m_currentPosition + BTUtils.SONG_CHUNK_SIZE) <= m_maxSongLength) {
+                chunkSize = BTUtils.SONG_CHUNK_SIZE;
                 m_currentSongDone = false;
             }
             else {

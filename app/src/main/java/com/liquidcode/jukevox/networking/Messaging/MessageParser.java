@@ -141,10 +141,10 @@ public class MessageParser {
      * @param incoming
      * @return
      */
-    public static byte parseServerResponse(byte[] incoming) {
+    public static byte  parseServerResponse(byte[] incoming) {
         byte messageResponse = 0;
         if(incoming.length > 0) {
-            // skip MESSAGETYPE(1) + LENGTH (2)
+            // skip MESSAGETYPE(1byte) + LENGTH (2bytes) + MESSAGE RESPONSE(1byte)
             messageResponse = incoming[3];
         }
         return messageResponse;
