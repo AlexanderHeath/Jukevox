@@ -13,7 +13,6 @@ import java.util.Iterator;
 /**
  * Created by mikev on 6/18/2017.
  */
-
 public class SentMessageThread extends Thread {
 
     // this is our list of sent messages

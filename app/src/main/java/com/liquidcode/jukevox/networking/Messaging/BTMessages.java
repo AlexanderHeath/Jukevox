@@ -15,15 +15,18 @@ public interface BTMessages {
     int MESSAGE_USER_DISCONNECT = 6;
     int MESSAGE_CONNECTED_TO_SERVER = 7;
     int MESSAGE_CLIENT_NUM_CHANGED = 8;
+    int MESSAGE_UPDATE_STREAM_PROGRESS = 9;
+    int MESSAGE_UPDATE_STREAM_END = 10;
 
     // Key names received from the BluetoothChatService Handler
     String CLIENT_NAME = "client_name";
     String SERVER_NAME = "server_name";
     String CLIENT_ID = "client_id";
     String TOAST = "toast";
+    String STREAM_PROGRESS = "stream_progress";
 
     // default time delay that a sent message waits before resending
-    float DEFAULT_DELAY = 5.0f;
+    float DEFAULT_DELAY = 50.0f;
 
     // INDEXES
     // index where the boolean value for a song data being finished lives

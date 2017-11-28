@@ -39,6 +39,7 @@ import com.liquidcode.jukevox.networking.MessageObjects.SongInfoWrapper;
 import com.liquidcode.jukevox.networking.Messaging.BTMessages;
 import com.liquidcode.jukevox.networking.Messaging.MessageBuilder;
 import com.liquidcode.jukevox.networking.Messaging.MessageParser;
+import com.liquidcode.jukevox.networking.Streaming.StreamingThread;
 import com.liquidcode.jukevox.util.BTUtils;
 
 import java.io.FileNotFoundException;
@@ -75,14 +76,8 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
     private BluetoothA2dp m_a2dpProfile = null;
     private BluetoothProfile.ServiceListener m_btServiceListener = null;
     private MediaPlayer m_mediaPlayer = null;
-
-    // Variables that keep track of the clients current song its streaming to the server
-    private long m_currentPosition; // how much data we've sent so far
-    private long m_maxSongLength; // how much data this song is
-    private AudioManager mAudioManager;
-    private Song m_currentSong;
-    private byte[] m_currentSongByteArray;
-    private boolean m_currentSongDone;
+    // the streaming thread
+    private StreamingThread m_streamingThread = null;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -90,9 +85,6 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         ViewGroup root = (ViewGroup) inflater.inflate(
                 R.layout.room_layout, container, false);
 
-        if(mAudioManager == null) {
-            mAudioManager = (AudioManager)getActivity().getSystemService(Context.AUDIO_SERVICE);
-        }
         // init the text widgets so we can be updated by the server
         initWidgets(root);
         getActivity().registerReceiver(mReceiver, new IntentFilter(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED));
@@ -105,10 +97,6 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
 
     public void initializeClient(String displayName, BluetoothClient btc) {
         m_displayName = displayName;
-        m_currentPosition = 0;
-        m_maxSongLength = 0;
-        m_currentSong = null;
-        m_currentSongDone = false;
         setBluetoothClient(btc);
         if(m_mediaPlayer == null) {
             m_mediaPlayer = new MediaPlayer();
@@ -184,6 +172,10 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         if(m_bluetoothClient != null) {
             m_bluetoothClient.getBTAdapter().closeProfileProxy(BluetoothProfile.A2DP, m_a2dpProfile);
         }
+        if(m_streamingThread != null) {
+            m_streamingThread.cancel();
+            m_streamingThread = null;
+        }
     }
 
     @Override
@@ -194,6 +186,11 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         // disconnect from the server here since we are actively connected
         if(m_bluetoothClient != null) {
             m_bluetoothClient.disconnectFromServer();
+        }
+        if(m_streamingThread != null) {
+            // it should be cleaned up by here but check in case
+            m_streamingThread.cancel();
+            m_streamingThread = null;
         }
     }
 
@@ -232,6 +229,24 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                     }
                     m_isConnectedToRoom = false;
                     break;
+                case BTMessages.MESSAGE_UPDATE_STREAM_PROGRESS:
+                    long newProgress = msg.getData().getLong(BTMessages.STREAM_PROGRESS);
+                    if(m_sendingProgress != null) {
+                        m_sendingProgress.setProgress((int)newProgress);
+                    }
+                    break;
+                case BTMessages.MESSAGE_UPDATE_STREAM_END:
+                    if(m_streamingThread != null) {
+                        m_streamingThread.cancel();
+                        m_streamingThread = null;
+                    }
+                    // update the Progressbar
+                    if(m_sendingProgress != null) {
+                        m_sendingProgress.setProgress(0);
+                        m_sendingProgress.setMax(0);
+                        m_sendingProgress.setVisibility(View.VISIBLE);
+                    }
+                    break;
             }
         }
     };
@@ -246,8 +261,10 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                     // increase the index so we are reading our actual message
                     int currentClientCount = MessageParser.parseClientCount(message);
                     updateClientCount(currentClientCount);
-                    // send our repsonse
+                    // send our response
                     sendResponse(BTMessages.SM_CLIENTCOUNT);
+                    // let the client know they connected
+                    m_logText.append("-Connected to room: " + m_bluetoothClient.getServerName());
                     break;
                 }
                 case BTMessages.SM_SONGINFO: {
@@ -282,8 +299,9 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
                     if (m_bluetoothClient != null) {
                         byte responsebyte = MessageParser.parseServerResponse(message);
                         if(responsebyte == BTMessages.SM_SONGDATA) {
-                            // try to stream next chunk
-                            streamNextChunk();
+                            if(m_streamingThread != null) {
+                                m_streamingThread.signalStream();
+                            }
                         }
                         m_bluetoothClient.handleResponseMessage(responsebyte);
                     }
@@ -304,7 +322,7 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
             @Override
             public void onServiceConnected(int i, BluetoothProfile bluetoothProfile) {
                 if (bluetoothProfile != null && i == BluetoothProfile.A2DP) {
-                    boolean a2dpOn = mAudioManager.isBluetoothA2dpOn();
+//                    boolean a2dpOn = mAudioManager.isBluetoothA2dpOn();
 
                     // we have a valid profile
                     m_a2dpProfile = (BluetoothA2dp) bluetoothProfile;
@@ -330,125 +348,50 @@ public class ClientJoinedFragment extends android.support.v4.app.Fragment {
         }
     }
 
+    /**
+     * This function will take care of getting the song info and passing it to
+     * the streaming thread in the format its expecting.
+     * @param artist - the artist we picked
+     * @param songData - the song info the StreamingThread needs
+     */
     public void beginSongStreaming(String artist, Song songData) {
         // send the song info over
         if(m_bluetoothClient != null) {
             sendSongInfo(artist, songData.title);
-            // start sending the bytes until we reached the max for the current song
-//             if(m_streamThread == null) {
-//                 m_streamThread = new StreamingThread();
-//             }
-//             m_streamThread.start();
-            m_currentPosition = 0;
-            m_currentSong = songData;
-            m_maxSongLength = m_currentSong.data;
-            m_currentSongByteArray = new byte[(int)m_maxSongLength];
-            Uri fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, m_currentSong.id);
+
+
+
+            long maxSongLength = songData.data;
+            byte[] currentSongByteArray = new byte[(int)maxSongLength];
+            Uri fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, songData.id);
             try {
                 InputStream inp = getContext().getContentResolver().openInputStream(fileUri);
                 try {
-                    inp.read(m_currentSongByteArray, 0, (int) m_maxSongLength);
+                    inp.read(currentSongByteArray, 0, (int) maxSongLength);
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
             } catch(FileNotFoundException ex) {
                 ex.printStackTrace();
             }
-            // lets check real quick that our song size isn't less than our chunk size (signaling we finished)
-            m_currentSongDone = (m_maxSongLength <= BTUtils.SONG_CHUNK_SIZE) ? true : false;
             // lets set up the seind progress bar
             if(m_sendingProgress != null) {
                 m_sendingProgress.setVisibility(View.VISIBLE);
-                m_sendingProgress.setMax((int)m_maxSongLength);
+                m_sendingProgress.setMax((int)maxSongLength);
                 m_sendingProgress.setProgress(0);
             }
-            // stream the first chunk
-            streamNextChunk();
+            // start sending the bytes until we reached the max for the current song
+             if(m_streamingThread == null) {
+                 m_streamingThread = new StreamingThread(mHandler, m_bluetoothClient, currentSongByteArray, m_id);
+             }
+             m_streamingThread.start();
         }
-    }
-
-    public boolean playSong(boolean isPaused) {
-//        long id = m_currentSong.id;
-//        // set up the file to be played
-//        Uri fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
-        ByteDataSource bds = new ByteDataSource(m_currentSongByteArray);
-        try {
-            // create the audio attributes
-            //m_mediaPlayer.setDataSource(bds);
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-            return false;
-        } catch (SecurityException e) {
-            e.printStackTrace();
-            return false;
-        } catch (IllegalStateException e) {
-            e.printStackTrace();
-            return false;
-        }
-
-        try {
-            m_mediaPlayer.prepare();
-            if(!isPaused) {
-                m_mediaPlayer.start();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            Toast.makeText(getActivity(), "Failed to start media", Toast.LENGTH_SHORT).show();
-            return false;
-        }
-        catch (IllegalStateException e) {
-            e.printStackTrace();
-            Toast.makeText(getActivity(), "Failed to start media", Toast.LENGTH_SHORT).show();
-            return false;
-        }
-
-        return true;
-    }
-
-    public void stopSong()
-    {
-        //m_mediaPlayer.stop();
-        //m_mediaPlayer.reset();
     }
 
     private void sendResponse(byte messID) {
         if(m_bluetoothClient != null) {
             byte[] out = MessageBuilder.buildMessageResponse(m_id, messID);
             m_bluetoothClient.sendDataToServer(out, false);
-        }
-    }
-
-    private void streamNextChunk() {
-        if(m_bluetoothClient != null) {
-            // figure out the chunk size
-            long chunkSize = 0;
-            if((m_currentPosition + BTUtils.SONG_CHUNK_SIZE) <= m_maxSongLength) {
-                chunkSize = BTUtils.SONG_CHUNK_SIZE;
-                m_currentSongDone = false;
-            }
-            else {
-                chunkSize = m_maxSongLength - m_currentPosition;
-                m_currentSongDone = true;
-                // rest the progress
-                if(m_sendingProgress != null) {
-                    m_sendingProgress.setMax(0);
-                    m_sendingProgress.setVisibility(View.INVISIBLE);
-                    m_sendingProgress.setProgress(0);
-                }
-            }
-            if(chunkSize > 0) {
-                // send the next chunk of data
-                byte[] nextChunk = new byte[(int)chunkSize];
-                System.arraycopy(m_currentSongByteArray, (int)m_currentPosition, nextChunk, 0, (int)chunkSize);
-                // send this new byte array
-                byte[] newMessage = MessageBuilder.buildSongData(m_id, nextChunk, m_currentSongDone);
-                m_bluetoothClient.sendDataToServer(newMessage, true);
-                // adjust our position
-                m_currentPosition += chunkSize;
-                updateClientCount((int)m_currentPosition);
-                // update the progress bar
-                m_sendingProgress.setProgress(m_sendingProgress.getProgress() + (int)chunkSize);
-            }
         }
     }
 

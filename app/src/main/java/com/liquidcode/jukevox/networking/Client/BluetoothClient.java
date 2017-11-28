@@ -59,6 +59,7 @@ public class BluetoothClient {
 
     public BluetoothAdapter getBTAdapter() { return m_btAdapter; }
     public BluetoothDevice getServerDevice() { return m_serverDevice; }
+    public String getServerName() { return m_serverDevice.getName(); }
 
     // our interface to connect to a device
     public synchronized boolean connectToServer(BluetoothDevice serverDevice, boolean secure) {
